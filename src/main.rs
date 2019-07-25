@@ -39,10 +39,11 @@ fn main() -> std::io::Result<()> {
 
         let r = camera.get_ray(u, v);
         let _p = r.point_at_parameter(2.0);
-        col += color(&r, &world);
+        col += color(&r, &world, &mut rng);
       }
 
       col /= scalar(ns as f64);
+      col = vec3(col.x.sqrt(), col.y.sqrt(), col.z.sqrt());
       let ir = (255.99 * col.x) as isize;
       let ig = (255.99 * col.y) as isize;
       let ib = (255.99 * col.z) as isize;
@@ -53,14 +54,26 @@ fn main() -> std::io::Result<()> {
   Ok(())
 }
 
-fn color(r: &Ray, world: &Box<dyn Hitable>) -> Vec3 {
+fn color(r: &Ray, world: &Box<dyn Hitable>, rng: &mut ThreadRng) -> Vec3 {
   let mut rec = HitRecord::default();
 
-  if world.hit(r, 0.0, std::f64::INFINITY, &mut rec) {
-    return scalar(0.5) * vec3(rec.normal.x + 1.0, rec.normal.y + 1.0, rec.normal.z + 1.0);
+  if world.hit(r, 0.001, std::f64::INFINITY, &mut rec) {
+    let target = rec.p + rec.normal + random_in_unit_sphere(rng);
+    return scalar(0.5) * color(&Ray::new(rec.p, target - rec.p), world, rng);
   }
 
   let unit_direction = r.direction().unit();
   let t = 0.5 * (unit_direction.y + 1.0);
   scalar(1.0 - t) * scalar(1.0) + scalar(t) * vec3(0.5, 0.7, 1.0)
+}
+
+fn random_in_unit_sphere(rng: &mut ThreadRng) -> Vec3 {
+  let mut p;
+  loop {
+    p = scalar(2.0) * vec3(rng.gen(), rng.gen(), rng.gen()) - scalar(1.0);
+    if p.squared_length() >= 1.0 {
+      break;
+    }
+  }
+  p
 }
