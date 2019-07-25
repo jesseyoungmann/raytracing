@@ -1,11 +1,14 @@
+use rand::prelude::*;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 
+mod camera;
 mod hitable;
 mod ray;
 pub mod vec3;
 
+use camera::Camera;
 use hitable::*;
 use ray::Ray;
 use vec3::*;
@@ -16,29 +19,30 @@ fn main() -> std::io::Result<()> {
 
   let nx: isize = 200;
   let ny: isize = 100;
+  let ns: isize = 100;
 
-  let lower_left_corner = vec3(-2.0, -1.0, -1.0);
-  let horizontal = vec3(4.0, 0.0, 0.0);
-  let vertical = vec3(0.0, 2.0, 0.0);
-  let origin = scalar(0.0);
   let world: Box<dyn Hitable> = Box::new(HitableList::new(vec![
     Box::new(Sphere::new(vec3(0.0, 0.0, -1.0), 0.5)),
     Box::new(Sphere::new(vec3(0.0, -100.5, -1.0), 100.0)),
   ]));
+  let camera = Camera::specific();
+  let mut rng = rand::thread_rng();
 
   file.write_all(format!("P3\n{} {}\n255\n", nx, ny).as_bytes())?;
   for j in (0..ny).rev() {
     for i in 0..nx {
-      let u = i as f64 / nx as f64;
-      let v = j as f64 / ny as f64;
+      let mut col = scalar(0.0);
 
-      let r = Ray::new(
-        origin,
-        lower_left_corner + scalar(u) * horizontal + scalar(v) * vertical,
-      );
+      for _ in 0..ns {
+        let u = (i as f64 + rng.gen::<f64>()) / nx as f64;
+        let v = (j as f64 + rng.gen::<f64>()) / ny as f64;
 
-      let _p = r.point_at_parameter(2.0);
-      let col = color(&r, &world);
+        let r = camera.get_ray(u, v);
+        let _p = r.point_at_parameter(2.0);
+        col += color(&r, &world);
+      }
+
+      col /= scalar(ns as f64);
       let ir = (255.99 * col.x) as isize;
       let ig = (255.99 * col.y) as isize;
       let ib = (255.99 * col.z) as isize;
