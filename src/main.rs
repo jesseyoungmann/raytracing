@@ -5,11 +5,13 @@ use std::io::prelude::*;
 
 mod camera;
 mod hitable;
+mod material;
 mod ray;
 pub mod vec3;
 
 use camera::Camera;
 use hitable::*;
+use material::*;
 use ray::Ray;
 use vec3::*;
 
@@ -22,8 +24,34 @@ fn main() -> std::io::Result<()> {
   let ns: isize = 100;
 
   let world: Box<dyn Hitable> = Box::new(HitableList::new(vec![
-    Box::new(Sphere::new(vec3(0.0, 0.0, -1.0), 0.5)),
-    Box::new(Sphere::new(vec3(0.0, -100.5, -1.0), 100.0)),
+    Box::new(Sphere::new(
+      vec3(0.0, 0.0, -1.0),
+      0.5,
+      Box::new(Lambertian {
+        albedo: vec3(0.8, 0.3, 0.3),
+      }),
+    )),
+    Box::new(Sphere::new(
+      vec3(0.0, -100.5, -1.0),
+      100.0,
+      Box::new(Lambertian {
+        albedo: vec3(0.8, 0.8, 0.0),
+      }),
+    )),
+    Box::new(Sphere::new(
+      vec3(1.0, 0.0, -1.0),
+      0.5,
+      Box::new(Metal {
+        albedo: vec3(0.8, 0.6, 0.2),
+      }),
+    )),
+    Box::new(Sphere::new(
+      vec3(-1.0, 0.0, -1.0),
+      0.5,
+      Box::new(Metal {
+        albedo: vec3(0.8, 0.8, 0.8),
+      }),
+    )),
   ]));
   let camera = Camera::specific();
   let mut rng = rand::thread_rng();
@@ -39,7 +67,8 @@ fn main() -> std::io::Result<()> {
 
         let r = camera.get_ray(u, v);
         let _p = r.point_at_parameter(2.0);
-        col += color(&r, &world, &mut rng);
+        let depth = 0;
+        col += color(&r, &world, depth);
       }
 
       col /= scalar(ns as f64);
@@ -54,12 +83,19 @@ fn main() -> std::io::Result<()> {
   Ok(())
 }
 
-fn color(r: &Ray, world: &Box<dyn Hitable>, rng: &mut ThreadRng) -> Vec3 {
-  let mut rec = HitRecord::default();
-
-  if world.hit(r, 0.001, std::f64::INFINITY, &mut rec) {
-    let target = rec.p + rec.normal + random_in_unit_sphere(rng);
-    return scalar(0.5) * color(&Ray::new(rec.p, target - rec.p), world, rng);
+fn color(r: &Ray, world: &Box<dyn Hitable>, depth: isize) -> Vec3 {
+  if let Some(mut rec) = world.hit(r, 0.001, std::f64::INFINITY) {
+    if depth < 50 {
+      if let Some((attenuation, scattered)) = rec
+        .material
+        .take()
+        .as_ref()
+        .and_then(|m| m.scatter(r, &mut rec))
+      {
+        return attenuation * color(&scattered, world, depth + 1);
+      }
+    }
+    return scalar(0.0);
   }
 
   let unit_direction = r.direction().unit();
@@ -67,8 +103,9 @@ fn color(r: &Ray, world: &Box<dyn Hitable>, rng: &mut ThreadRng) -> Vec3 {
   scalar(1.0 - t) * scalar(1.0) + scalar(t) * vec3(0.5, 0.7, 1.0)
 }
 
-fn random_in_unit_sphere(rng: &mut ThreadRng) -> Vec3 {
+pub fn random_in_unit_sphere() -> Vec3 {
   let mut p;
+  let mut rng = rand::thread_rng();
   loop {
     p = scalar(2.0) * vec3(rng.gen(), rng.gen(), rng.gen()) - scalar(1.0);
     if p.squared_length() >= 1.0 {
