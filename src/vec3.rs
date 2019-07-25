@@ -11,6 +11,9 @@ pub struct Vec3 {
 pub fn vec3(x: f64, y: f64, z: f64) -> Vec3 {
   Vec3 { x, y, z }
 }
+pub fn scalar(f: f64) -> Vec3 {
+  vec3(f, f, f)
+}
 
 impl Vec3 {
   pub fn new(x: f64, y: f64, z: f64) -> Self {
@@ -156,13 +159,13 @@ impl Vec3 {
     )
   }
 
-  //pub fn make_unit_vector(&mut self) {
-  //  let k = 1.0 / self.length();
-  //  self *= vec3(k,k,k);
-  //}
+  pub fn make_unit_vector(v: Self) -> Self {
+    let k = 1.0 / v.length();
+    v * scalar(k)
+  }
 
-  // TODO: UGH
-  //pub fn unit_vector(&self) {
-  //  self / self.length()
-  //}
+  // TODO: Why does this give different results from above? WTF
+  pub fn unit(&self) -> Self {
+    *self / scalar(self.length())
+  }
 }
