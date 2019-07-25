@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Vec3 {
   pub x: f64,
   pub y: f64,
@@ -89,9 +89,9 @@ impl Div for Vec3 {
 
   fn div(self, other: Self) -> Self {
     Self {
-      x: self.x + other.x,
-      y: self.y + other.y,
-      z: self.z + other.z,
+      x: self.x / other.x,
+      y: self.y / other.y,
+      z: self.z / other.z,
     }
   }
 }
@@ -159,12 +159,6 @@ impl Vec3 {
     )
   }
 
-  pub fn make_unit_vector(v: Self) -> Self {
-    let k = 1.0 / v.length();
-    v * scalar(k)
-  }
-
-  // TODO: Why does this give different results from above? WTF
   pub fn unit(&self) -> Self {
     *self * scalar(1.0 / self.length())
   }

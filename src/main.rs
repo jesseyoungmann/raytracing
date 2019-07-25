@@ -2,9 +2,11 @@ use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 
+mod hitable;
 mod ray;
 pub mod vec3;
 
+use hitable::*;
 use ray::Ray;
 use vec3::*;
 
@@ -19,6 +21,10 @@ fn main() -> std::io::Result<()> {
   let horizontal = vec3(4.0, 0.0, 0.0);
   let vertical = vec3(0.0, 2.0, 0.0);
   let origin = scalar(0.0);
+  let world: Box<dyn Hitable> = Box::new(HitableList::new(vec![
+    Box::new(Sphere::new(vec3(0.0, 0.0, -1.0), 0.5)),
+    Box::new(Sphere::new(vec3(0.0, -100.5, -1.0), 100.0)),
+  ]));
 
   file.write_all(format!("P3\n{} {}\n255\n", nx, ny).as_bytes())?;
   for j in (0..ny).rev() {
@@ -31,7 +37,8 @@ fn main() -> std::io::Result<()> {
         lower_left_corner + scalar(u) * horizontal + scalar(v) * vertical,
       );
 
-      let col = color(&r);
+      let _p = r.point_at_parameter(2.0);
+      let col = color(&r, &world);
       let ir = (255.99 * col.x) as isize;
       let ig = (255.99 * col.y) as isize;
       let ib = (255.99 * col.z) as isize;
@@ -42,27 +49,14 @@ fn main() -> std::io::Result<()> {
   Ok(())
 }
 
-fn color(r: &Ray) -> Vec3 {
-  let sphere_origin = vec3(0.0, 0.0, -1.0);
-  if let Some(t) = hit_sphere(sphere_origin, 0.5, r) {
-    let n = (r.point_at_parameter(t) - sphere_origin).unit();
-    return scalar(0.5) * vec3(n.x + 1.0, n.y + 1.0, n.z + 1.0);
+fn color(r: &Ray, world: &Box<dyn Hitable>) -> Vec3 {
+  let mut rec = HitRecord::default();
+
+  if world.hit(r, 0.0, std::f64::INFINITY, &mut rec) {
+    return scalar(0.5) * vec3(rec.normal.x + 1.0, rec.normal.y + 1.0, rec.normal.z + 1.0);
   }
 
-  let unit_direction = Vec3::make_unit_vector(r.direction());
+  let unit_direction = r.direction().unit();
   let t = 0.5 * (unit_direction.y + 1.0);
   scalar(1.0 - t) * scalar(1.0) + scalar(t) * vec3(0.5, 0.7, 1.0)
-}
-
-fn hit_sphere(center: Vec3, radius: f64, r: &Ray) -> Option<f64> {
-  let oc = r.origin() - center;
-  let a = r.direction().dot(r.direction());
-  let b = 2.0 * oc.dot(r.direction());
-  let c = oc.dot(oc) - radius * radius;
-  let discriminant = b * b - 4.0 * a * c;
-  if discriminant < 0.0 {
-    None
-  } else {
-    Some((-b - discriminant.sqrt()) / (2.0 * a))
-  }
 }
