@@ -41,16 +41,12 @@ fn main() -> std::io::Result<()> {
     Box::new(Sphere::new(
       vec3(1.0, 0.0, -1.0),
       0.5,
-      Box::new(Metal {
-        albedo: vec3(0.8, 0.6, 0.2),
-      }),
+      Box::new(Metal::new(vec3(0.8, 0.6, 0.2), 1.0)),
     )),
     Box::new(Sphere::new(
       vec3(-1.0, 0.0, -1.0),
       0.5,
-      Box::new(Metal {
-        albedo: vec3(0.8, 0.8, 0.8),
-      }),
+      Box::new(Metal::new(vec3(0.8, 0.8, 0.8), 0.3)),
     )),
   ]));
   let camera = Camera::specific();
