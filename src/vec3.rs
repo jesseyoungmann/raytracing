@@ -166,6 +166,6 @@ impl Vec3 {
 
   // TODO: Why does this give different results from above? WTF
   pub fn unit(&self) -> Self {
-    *self / scalar(self.length())
+    *self * scalar(1.0 / self.length())
   }
 }
