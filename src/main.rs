@@ -50,7 +50,15 @@ fn main() -> std::io::Result<()> {
       Box::new(Dielectric::new(1.5)),
     )),
   ]));
-  let camera = Camera::specific();
+
+  let camera = Camera::new(
+    vec3(-1.5, 1.5, 1.0),
+    vec3(0.0, 0.0, -1.0),
+    vec3(0.0, 1.0, 0.0),
+    90.0,
+    nx as f64 / ny as f64,
+  );
+
   let mut rng = rand::thread_rng();
 
   file.write_all(format!("P3\n{} {}\n255\n", nx, ny).as_bytes())?;
