@@ -13,13 +13,12 @@ pub enum Material {
 impl Material {
   pub fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
     match self {
-      Material::OkayLambertian(inner) => inner.scatter(r_in,rec),
-      Material::OkayMetal(inner) => inner.scatter(r_in,rec),
-      Material::OkayDielectric(inner) => inner.scatter(r_in,rec),
+      Material::OkayLambertian(inner) => inner.scatter(r_in, rec),
+      Material::OkayMetal(inner) => inner.scatter(r_in, rec),
+      Material::OkayDielectric(inner) => inner.scatter(r_in, rec),
     }
   }
 }
-
 
 #[derive(Clone)]
 pub struct Lambertian {

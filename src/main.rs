@@ -1,8 +1,10 @@
 use rand::prelude::*;
+use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
-use std::env;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 mod camera;
 mod hitable;
@@ -56,31 +58,74 @@ fn main() -> std::io::Result<()> {
     )
   };
 
-  let mut rng = rand::thread_rng();
+  let world = Arc::new(world);
+  let camera = Arc::new(camera);
 
-  file.write_all(format!("P3\n{} {}\n255\n", nx, ny).as_bytes())?;
-  for j in (0..ny).rev() {
-    for i in 0..nx {
-      let mut col = scalar(0.0);
+  let core_count: isize = 4;
+  let outer_result: Arc<Mutex<Vec<Option<_>>>> =
+    Arc::new(Mutex::new(vec![None; core_count as usize]));
 
-      // TODO: Stop early if all samples are very similar in color?
-      for _ in 0..ns {
-        let u = (i as f64 + rng.gen::<f64>()) / nx as f64;
-        let v = (j as f64 + rng.gen::<f64>()) / ny as f64;
+  let mut handles = vec![];
+  for main_x in 0..core_count {
+    let x = main_x as isize;
+    let nx = nx;
+    let ny = ny;
+    let ns = ns;
 
-        let r = camera.get_ray(u, v);
-        let _p = r.point_at_parameter(2.0);
-        let depth = 0;
-        col += color(&r, &world, depth);
+    let camera = Arc::clone(&camera);
+    let outer_result = Arc::clone(&outer_result);
+    let world = Arc::clone(&world);
+
+    let handle = thread::spawn(move || {
+      let mut rng = rand::thread_rng();
+
+      let mut result = vec![];
+
+      for j in 0..ny / core_count {
+        let j = j + (ny / core_count) * x;
+        let j = ny - j;
+
+        for i in 0..nx {
+          let mut col = scalar(0.0);
+
+          // TODO: Stop early if all samples are very similar in color?
+          for _ in 0..ns {
+            let u = (i as f64 + rng.gen::<f64>()) / nx as f64;
+            let v = (j as f64 + rng.gen::<f64>()) / ny as f64;
+
+            let r = camera.get_ray(u, v);
+            let _p = r.point_at_parameter(2.0);
+            let depth = 0;
+            col += color(&r, &world, depth);
+          }
+
+          col /= scalar(ns as f64);
+          col = vec3(col.x.sqrt(), col.y.sqrt(), col.z.sqrt());
+          let ir = (255.99 * col.x) as isize;
+          let ig = (255.99 * col.y) as isize;
+          let ib = (255.99 * col.z) as isize;
+
+          result.push((ir, ig, ib));
+        }
       }
 
-      col /= scalar(ns as f64);
-      col = vec3(col.x.sqrt(), col.y.sqrt(), col.z.sqrt());
-      let ir = (255.99 * col.x) as isize;
-      let ig = (255.99 * col.y) as isize;
-      let ib = (255.99 * col.z) as isize;
-      file.write(format!("{} {} {}\n", ir, ig, ib).as_bytes())?;
-    }
+      outer_result.lock().unwrap()[x as usize] = Some(result);
+    });
+
+    handles.push(handle);
+  }
+
+  for handle in handles {
+    handle.join().unwrap();
+  }
+
+  file.write_all(format!("P3\n{} {}\n255\n", nx, ny).as_bytes())?;
+  let mut result = vec![];
+  for r in outer_result.lock().unwrap().iter_mut() {
+    result.append(r.as_mut().unwrap());
+  }
+  for (ir, ig, ib) in result {
+    file.write(format!("{} {} {}\n", ir, ig, ib).as_bytes())?;
   }
 
   Ok(())
@@ -166,21 +211,20 @@ pub fn random_scene() -> HitableList {
           ));
         } else {
           // glass
-          list.push(Sphere::new(
-            center,
-            0.2,
-            Dielectric::new(1.5),
-          ));
+          list.push(Sphere::new(center, 0.2, Dielectric::new(1.5)));
         }
       }
     }
   }
 
+  list.push(Sphere::new(vec3(0.0, 1.0, 0.0), 1.0, Dielectric::new(1.5)));
+  /*
   list.push(Sphere::new(
     vec3(0.0, 1.0, 0.0),
-    1.0,
-    Dielectric::new(1.5),
+    0.94,
+    Dielectric::new(-1.5),
   ));
+  */
   list.push(Sphere::new(
     vec3(-4.0, 1.0, 0.0),
     1.0,
