@@ -51,13 +51,22 @@ fn main() -> std::io::Result<()> {
     )),
   ]));
 
-  let camera = Camera::new(
-    vec3(-1.5, 1.5, 1.0),
-    vec3(0.0, 0.0, -1.0),
-    vec3(0.0, 1.0, 0.0),
-    90.0,
-    nx as f64 / ny as f64,
-  );
+  let camera = {
+    let lookfrom = vec3(3.0, 3.0, 2.0);
+    let lookat = vec3(0.0, 0.0, -1.0);
+    let dist_to_focus = (lookfrom - lookat).length();
+    let aperture = 2.0;
+
+    Camera::new(
+      lookfrom,
+      lookat,
+      vec3(0.0, 1.0, 0.0),
+      20.0,
+      nx as f64 / ny as f64,
+      aperture,
+      dist_to_focus,
+    )
+  };
 
   let mut rng = rand::thread_rng();
 
