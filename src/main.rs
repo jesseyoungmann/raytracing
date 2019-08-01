@@ -23,39 +23,13 @@ fn main() -> std::io::Result<()> {
   let ny: isize = 100;
   let ns: isize = 100;
 
-  let world: Box<dyn Hitable> = Box::new(HitableList::new(vec![
-    Box::new(Sphere::new(
-      vec3(0.0, 0.0, -1.0),
-      0.5,
-      Box::new(Lambertian::new(vec3(0.1, 0.2, 0.5))),
-    )),
-    Box::new(Sphere::new(
-      vec3(0.0, -100.5, -1.0),
-      100.0,
-      Box::new(Lambertian::new(vec3(0.8, 0.8, 0.0))),
-    )),
-    Box::new(Sphere::new(
-      vec3(1.0, 0.0, -1.0),
-      0.5,
-      Box::new(Metal::new(vec3(0.8, 0.6, 0.2), 1.0)),
-    )),
-    Box::new(Sphere::new(
-      vec3(-1.0, 0.0, -1.0),
-      0.5,
-      Box::new(Dielectric::new(1.5)),
-    )),
-    Box::new(Sphere::new(
-      vec3(-1.0, 0.0, -1.0),
-      -0.45,
-      Box::new(Dielectric::new(1.5)),
-    )),
-  ]));
+  let world: Box<dyn Hitable> = random_scene();
 
   let camera = {
-    let lookfrom = vec3(3.0, 3.0, 2.0);
-    let lookat = vec3(0.0, 0.0, -1.0);
-    let dist_to_focus = (lookfrom - lookat).length();
-    let aperture = 2.0;
+    let lookfrom = vec3(13.0, 2.0, 3.0);
+    let lookat = vec3(0.0, 0.0, 0.0);
+    let dist_to_focus = 10.0;
+    let aperture = 0.1;
 
     Camera::new(
       lookfrom,
@@ -127,4 +101,81 @@ pub fn random_in_unit_sphere() -> Vec3 {
     }
   }
   p
+}
+
+pub fn random_scene() -> Box<Hitable> {
+  let mut list: Vec<Box<Hitable>> = vec![];
+
+  list.push(Box::new(Sphere::new(
+    vec3(0.0, -1000.0, 0.0),
+    1000.0,
+    Box::new(Lambertian::new(vec3(0.5, 0.5, 0.5))),
+  )));
+
+  let mut rng = rand::thread_rng();
+
+  for a in -11..11 {
+    for b in -11..11 {
+      let choose_mat: f64 = rng.gen();
+      let center = vec3(
+        a as f64 + 0.9 + rng.gen::<f64>(),
+        0.2,
+        b as f64 + 0.9 * rng.gen::<f64>(),
+      );
+
+      if (center - vec3(4.0, 0.2, 0.0)).length() > 0.9 {
+        if choose_mat < 0.8 {
+          // diffuse
+          list.push(Box::new(Sphere::new(
+            center,
+            0.2,
+            Box::new(Lambertian::new(vec3(
+              rng.gen::<f64>() * rng.gen::<f64>(),
+              rng.gen::<f64>() * rng.gen::<f64>(),
+              rng.gen::<f64>() * rng.gen::<f64>(),
+            ))),
+          )));
+        } else if choose_mat < 0.95 {
+          //metal
+          list.push(Box::new(Sphere::new(
+            center,
+            0.2,
+            Box::new(Metal::new(
+              vec3(
+                0.5 * (1.0 + rng.gen::<f64>()),
+                0.5 * (1.0 + rng.gen::<f64>()),
+                0.5 * (1.0 + rng.gen::<f64>()),
+              ),
+              0.5 * rng.gen::<f64>(),
+            )),
+          )));
+        } else {
+          // glass
+          list.push(Box::new(Sphere::new(
+            center,
+            0.2,
+            Box::new(Dielectric::new(1.5)),
+          )));
+        }
+      }
+    }
+  }
+
+  list.push(Box::new(Sphere::new(
+    vec3(0.0, 1.0, 0.0),
+    1.0,
+    Box::new(Dielectric::new(1.5)),
+  )));
+  list.push(Box::new(Sphere::new(
+    vec3(-4.0, 1.0, 0.0),
+    1.0,
+    Box::new(Lambertian::new(vec3(0.4, 0.2, 0.1))),
+  )));
+  list.push(Box::new(Sphere::new(
+    vec3(4.0, 1.0, 0.0),
+    1.0,
+    Box::new(Metal::new(vec3(0.7, 0.6, 0.5), 0.0)),
+  )));
+
+  Box::new(HitableList::new(list))
 }
