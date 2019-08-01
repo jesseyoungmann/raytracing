@@ -2,6 +2,7 @@ use rand::prelude::*;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
+use std::env;
 
 mod camera;
 mod hitable;
@@ -19,11 +20,24 @@ fn main() -> std::io::Result<()> {
   let count = fs::read_dir("output/")?.count();
   let mut file = File::create(format!("output/hello_world_{}.ppm", count))?;
 
-  let nx: isize = 200;
-  let ny: isize = 100;
-  let ns: isize = 100;
+  let args: Vec<String> = env::args().collect();
+  let factor: isize = if args.len() > 1 {
+    args[1].parse().unwrap()
+  } else {
+    1
+  };
 
-  let world: Box<dyn Hitable> = random_scene();
+  let quality: isize = if args.len() > 2 {
+    args[2].parse().unwrap()
+  } else {
+    100
+  };
+
+  let nx: isize = 200 * factor;
+  let ny: isize = 100 * factor;
+  let ns: isize = quality;
+
+  let world = random_scene();
 
   let camera = {
     let lookfrom = vec3(13.0, 2.0, 3.0);
@@ -49,6 +63,7 @@ fn main() -> std::io::Result<()> {
     for i in 0..nx {
       let mut col = scalar(0.0);
 
+      // TODO: Stop early if all samples are very similar in color?
       for _ in 0..ns {
         let u = (i as f64 + rng.gen::<f64>()) / nx as f64;
         let v = (j as f64 + rng.gen::<f64>()) / ny as f64;
@@ -71,7 +86,7 @@ fn main() -> std::io::Result<()> {
   Ok(())
 }
 
-fn color(r: &Ray, world: &Box<dyn Hitable>, depth: isize) -> Vec3 {
+fn color(r: &Ray, world: &HitableList, depth: isize) -> Vec3 {
   if let Some(mut rec) = world.hit(r, 0.001, std::f64::INFINITY) {
     if depth < 50 {
       if let Some((attenuation, scattered)) = rec
@@ -103,14 +118,14 @@ pub fn random_in_unit_sphere() -> Vec3 {
   p
 }
 
-pub fn random_scene() -> Box<Hitable> {
-  let mut list: Vec<Box<Hitable>> = vec![];
+pub fn random_scene() -> HitableList {
+  let mut list: Vec<Sphere> = vec![];
 
-  list.push(Box::new(Sphere::new(
+  list.push(Sphere::new(
     vec3(0.0, -1000.0, 0.0),
     1000.0,
-    Box::new(Lambertian::new(vec3(0.5, 0.5, 0.5))),
-  )));
+    Lambertian::new(vec3(0.5, 0.5, 0.5)),
+  ));
 
   let mut rng = rand::thread_rng();
 
@@ -126,56 +141,56 @@ pub fn random_scene() -> Box<Hitable> {
       if (center - vec3(4.0, 0.2, 0.0)).length() > 0.9 {
         if choose_mat < 0.8 {
           // diffuse
-          list.push(Box::new(Sphere::new(
+          list.push(Sphere::new(
             center,
             0.2,
-            Box::new(Lambertian::new(vec3(
+            Lambertian::new(vec3(
               rng.gen::<f64>() * rng.gen::<f64>(),
               rng.gen::<f64>() * rng.gen::<f64>(),
               rng.gen::<f64>() * rng.gen::<f64>(),
-            ))),
-          )));
+            )),
+          ));
         } else if choose_mat < 0.95 {
           //metal
-          list.push(Box::new(Sphere::new(
+          list.push(Sphere::new(
             center,
             0.2,
-            Box::new(Metal::new(
+            Metal::new(
               vec3(
                 0.5 * (1.0 + rng.gen::<f64>()),
                 0.5 * (1.0 + rng.gen::<f64>()),
                 0.5 * (1.0 + rng.gen::<f64>()),
               ),
               0.5 * rng.gen::<f64>(),
-            )),
-          )));
+            ),
+          ));
         } else {
           // glass
-          list.push(Box::new(Sphere::new(
+          list.push(Sphere::new(
             center,
             0.2,
-            Box::new(Dielectric::new(1.5)),
-          )));
+            Dielectric::new(1.5),
+          ));
         }
       }
     }
   }
 
-  list.push(Box::new(Sphere::new(
+  list.push(Sphere::new(
     vec3(0.0, 1.0, 0.0),
     1.0,
-    Box::new(Dielectric::new(1.5)),
-  )));
-  list.push(Box::new(Sphere::new(
+    Dielectric::new(1.5),
+  ));
+  list.push(Sphere::new(
     vec3(-4.0, 1.0, 0.0),
     1.0,
-    Box::new(Lambertian::new(vec3(0.4, 0.2, 0.1))),
-  )));
-  list.push(Box::new(Sphere::new(
+    Lambertian::new(vec3(0.4, 0.2, 0.1)),
+  ));
+  list.push(Sphere::new(
     vec3(4.0, 1.0, 0.0),
     1.0,
-    Box::new(Metal::new(vec3(0.7, 0.6, 0.5), 0.0)),
-  )));
+    Metal::new(vec3(0.7, 0.6, 0.5), 0.0),
+  ));
 
-  Box::new(HitableList::new(list))
+  HitableList::new(list)
 }

@@ -4,9 +4,22 @@ use crate::ray::Ray;
 use crate::vec3::*;
 use rand::prelude::*;
 
-pub trait Material {
-  fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)>;
+pub enum Material {
+  OkayLambertian(Lambertian),
+  OkayMetal(Metal),
+  OkayDielectric(Dielectric),
 }
+
+impl Material {
+  pub fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
+    match self {
+      Material::OkayLambertian(inner) => inner.scatter(r_in,rec),
+      Material::OkayMetal(inner) => inner.scatter(r_in,rec),
+      Material::OkayDielectric(inner) => inner.scatter(r_in,rec),
+    }
+  }
+}
+
 
 #[derive(Clone)]
 pub struct Lambertian {
@@ -14,13 +27,11 @@ pub struct Lambertian {
 }
 
 impl Lambertian {
-  pub fn new(albedo: Vec3) -> Self {
-    Self { albedo }
+  pub fn new(albedo: Vec3) -> Material {
+    Material::OkayLambertian(Self { albedo })
   }
-}
 
-impl Material for Lambertian {
-  fn scatter(&self, _r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
+  pub fn scatter(&self, _r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
     let target = rec.p + rec.normal + random_in_unit_sphere();
     let scattered = Ray::new(rec.p, target - rec.p);
     let attenuation = self.albedo;
@@ -35,16 +46,14 @@ pub struct Metal {
 }
 
 impl Metal {
-  pub fn new(albedo: Vec3, fuzz: f64) -> Self {
-    Self {
+  pub fn new(albedo: Vec3, fuzz: f64) -> Material {
+    Material::OkayMetal(Self {
       albedo,
       fuzz: if fuzz < 1.0 { fuzz } else { 1.0 },
-    }
+    })
   }
-}
 
-impl Material for Metal {
-  fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
+  pub fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
     let reflected = reflect(r_in.direction().unit(), rec.normal);
     let scattered = Ray::new(
       rec.p,
@@ -65,13 +74,11 @@ pub struct Dielectric {
 }
 
 impl Dielectric {
-  pub fn new(ref_idx: f64) -> Self {
-    Self { ref_idx }
+  pub fn new(ref_idx: f64) -> Material {
+    Material::OkayDielectric(Self { ref_idx })
   }
-}
 
-impl Material for Dielectric {
-  fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
+  pub fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
     let reflected = reflect(r_in.direction(), rec.normal);
     let attenuation = vec3(1.0, 1.0, 1.0);
 

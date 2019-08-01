@@ -17,11 +17,11 @@ pub trait Hitable {
 pub struct Sphere {
   pub center: Vec3,
   pub radius: f64,
-  pub material: Box<Material>,
+  pub material: Material,
 }
 
 impl Sphere {
-  pub fn new(center: Vec3, radius: f64, material: Box<Material>) -> Self {
+  pub fn new(center: Vec3, radius: f64, material: Material) -> Self {
     Self {
       center,
       radius,
@@ -45,7 +45,7 @@ impl Hitable for Sphere {
         rec.t = temp;
         rec.p = r.point_at_parameter(rec.t);
         rec.normal = (rec.p - self.center) / scalar(self.radius);
-        rec.material = Some(self.material.as_ref());
+        rec.material = Some(&self.material);
         return Some(rec);
       }
 
@@ -54,7 +54,7 @@ impl Hitable for Sphere {
         rec.t = temp;
         rec.p = r.point_at_parameter(rec.t);
         rec.normal = (rec.p - self.center) / scalar(self.radius);
-        rec.material = Some(self.material.as_ref());
+        rec.material = Some(&self.material);
         return Some(rec);
       }
     }
@@ -63,11 +63,11 @@ impl Hitable for Sphere {
 }
 
 pub struct HitableList {
-  pub list: Vec<Box<dyn Hitable>>,
+  pub list: Vec<Sphere>,
 }
 
 impl HitableList {
-  pub fn new(list: Vec<Box<dyn Hitable>>) -> Self {
+  pub fn new(list: Vec<Sphere>) -> Self {
     Self { list }
   }
 }
