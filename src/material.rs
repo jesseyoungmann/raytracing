@@ -1,10 +1,12 @@
+use rand::prelude::*;
+
 use crate::hitable::*;
 use crate::random_in_unit_sphere;
 use crate::ray::Ray;
+use crate::texture::*;
 use crate::vec3::*;
-use rand::prelude::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Material {
   OkayLambertian(Lambertian),
   OkayMetal(Metal),
@@ -23,18 +25,24 @@ impl Material {
 
 #[derive(Clone, Debug)]
 pub struct Lambertian {
-  pub albedo: Vec3,
+  pub albedo: Texture,
 }
 
 impl Lambertian {
-  pub fn new(albedo: Vec3) -> Material {
-    Material::OkayLambertian(Self { albedo })
+  pub fn new(texture: Texture) -> Material {
+    Material::OkayLambertian(Self { albedo: texture })
+  }
+
+  pub fn new_from_color(albedo: Vec3) -> Material {
+    Material::OkayLambertian(Self {
+      albedo: Texture::new_constant(albedo),
+    })
   }
 
   pub fn scatter(&self, _r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
     let target = rec.p + rec.normal + random_in_unit_sphere();
     let scattered = Ray::new(rec.p, target - rec.p);
-    let attenuation = self.albedo;
+    let attenuation = self.albedo.value(0.0, 0.0, rec.p);
     Some((attenuation, scattered))
   }
 }

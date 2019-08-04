@@ -11,6 +11,7 @@ mod camera;
 mod hitable;
 mod material;
 mod ray;
+mod texture;
 pub mod vec3;
 
 use bvh::*;
@@ -18,6 +19,7 @@ use camera::Camera;
 use hitable::*;
 use material::*;
 use ray::Ray;
+use texture::*;
 use vec3::*;
 
 fn main() -> std::io::Result<()> {
@@ -59,6 +61,7 @@ fn main() -> std::io::Result<()> {
   };
 
   let world = random_scene();
+  let (camera, world) = two_spheres_scene(nx as f64 / ny as f64);
 
   let world = Arc::new(world);
   let camera = Arc::new(camera);
@@ -179,7 +182,10 @@ pub fn random_scene() -> HitableList {
   list.push(Sphere::new(
     vec3(0.0, -1000.0, 0.0),
     1000.0,
-    Lambertian::new(vec3(0.5, 0.5, 0.5)),
+    Lambertian::new(Texture::new_checker(
+      Texture::new_constant(vec3(0.2, 0.3, 0.1)),
+      Texture::new_constant(vec3(0.9, 0.9, 0.9)),
+    )),
   ));
 
   let mut rng = rand::thread_rng();
@@ -200,7 +206,7 @@ pub fn random_scene() -> HitableList {
           list.push(Sphere::new(
             center,
             0.2,
-            Lambertian::new(vec3(
+            Lambertian::new_from_color(vec3(
               rng.gen::<f64>() * rng.gen::<f64>(),
               rng.gen::<f64>() * rng.gen::<f64>(),
               rng.gen::<f64>() * rng.gen::<f64>(),
@@ -239,7 +245,7 @@ pub fn random_scene() -> HitableList {
   list.push(Sphere::new(
     vec3(-4.0, 1.0, 0.0),
     1.0,
-    Lambertian::new(vec3(0.4, 0.2, 0.1)),
+    Lambertian::new_from_color(vec3(0.4, 0.2, 0.1)),
   ));
   list.push(Sphere::new(
     vec3(4.0, 1.0, 0.0),
@@ -248,4 +254,37 @@ pub fn random_scene() -> HitableList {
   ));
 
   HitableList::new(list)
+}
+
+pub fn two_spheres_scene(ratio: f64) -> (Camera, HitableList) {
+  let checker = Lambertian::new(Texture::new_checker(
+    Texture::new_constant(vec3(0.2, 0.3, 0.1)),
+    Texture::new_constant(vec3(0.9, 0.9, 0.9)),
+  ));
+
+  let list: Vec<Sphere> = vec![
+    Sphere::new(vec3(0.0, -10.0, 0.0), 10.0, checker.clone()),
+    Sphere::new(vec3(0.0, 10.0, 0.0), 10.0, checker),
+  ];
+
+  let list = HitableList::new(list);
+
+  let lookfrom = vec3(13.0, 2.0, 3.0);
+  let lookat = vec3(0.0, 0.0, 0.0);
+
+  let dist_to_focus = 10.0;
+  let aperture = 0.0;
+
+  (
+    Camera::new(
+      lookfrom,
+      lookat,
+      vec3(0.0, 1.0, 0.0),
+      20.0,
+      ratio,
+      aperture,
+      dist_to_focus,
+    ),
+    list,
+  )
 }
