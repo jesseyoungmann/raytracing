@@ -1,3 +1,4 @@
+use crate::bvh::*;
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::*;
@@ -10,10 +11,12 @@ pub struct HitRecord<'a> {
   pub material: Option<&'a Material>,
 }
 
-pub trait Hitable {
+pub trait Hitable: std::fmt::Debug {
   fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
+  fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb>;
 }
 
+#[derive(Debug)]
 pub struct Sphere {
   pub center: Vec3,
   pub radius: f64,
@@ -60,8 +63,16 @@ impl Hitable for Sphere {
     }
     None
   }
+
+  fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<Aabb> {
+    return Some(Aabb::new(
+      self.center - scalar(self.radius),
+      self.center + scalar(self.radius),
+    ));
+  }
 }
 
+#[derive(Debug)]
 pub struct HitableList {
   pub list: Vec<Sphere>,
 }
@@ -84,5 +95,16 @@ impl Hitable for HitableList {
       }
     }
     return hit_anything;
+  }
+
+  fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb> {
+    if self.list.len() < 1 {
+      return None;
+    }
+    let mut boxy = self.list[0].bounding_box(t0, t1)?;
+    for i in 1..self.list.len() {
+      boxy = surrounding_box(boxy, self.list[i].bounding_box(t0, t1)?);
+    }
+    Some(boxy)
   }
 }

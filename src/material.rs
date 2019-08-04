@@ -4,6 +4,7 @@ use crate::ray::Ray;
 use crate::vec3::*;
 use rand::prelude::*;
 
+#[derive(Debug)]
 pub enum Material {
   OkayLambertian(Lambertian),
   OkayMetal(Metal),
@@ -20,7 +21,7 @@ impl Material {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Lambertian {
   pub albedo: Vec3,
 }
@@ -38,7 +39,7 @@ impl Lambertian {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Metal {
   pub albedo: Vec3,
   pub fuzz: f64,
@@ -67,7 +68,7 @@ impl Metal {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Dielectric {
   pub ref_idx: f64,
 }

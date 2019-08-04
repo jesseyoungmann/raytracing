@@ -6,12 +6,14 @@ use std::io::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+mod bvh;
 mod camera;
 mod hitable;
 mod material;
 mod ray;
 pub mod vec3;
 
+use bvh::*;
 use camera::Camera;
 use hitable::*;
 use material::*;
@@ -39,8 +41,6 @@ fn main() -> std::io::Result<()> {
   let ny: isize = 100 * factor;
   let ns: isize = quality;
 
-  let world = random_scene();
-
   let camera = {
     let lookfrom = vec3(13.0, 2.0, 3.0);
     let lookat = vec3(0.0, 0.0, 0.0);
@@ -57,6 +57,8 @@ fn main() -> std::io::Result<()> {
       dist_to_focus,
     )
   };
+
+  let world = random_scene();
 
   let world = Arc::new(world);
   let camera = Arc::new(camera);
@@ -77,6 +79,13 @@ fn main() -> std::io::Result<()> {
     let world = Arc::clone(&world);
 
     let handle = thread::spawn(move || {
+      let mut temp = world
+        .list
+        .iter()
+        .map(|s| s as &Hitable)
+        .collect::<Vec<&dyn Hitable>>();
+      let bvh_world = BvhNode::new(&mut temp, 0.0, 0.0);
+
       let mut rng = rand::thread_rng();
 
       let mut result = vec![];
@@ -96,7 +105,8 @@ fn main() -> std::io::Result<()> {
             let r = camera.get_ray(u, v);
             let _p = r.point_at_parameter(2.0);
             let depth = 0;
-            col += color(&r, &world, depth);
+            col += color(&r, &bvh_world, depth);
+            //col += color(&r, &*world, depth);
           }
 
           col /= scalar(ns as f64);
@@ -131,7 +141,7 @@ fn main() -> std::io::Result<()> {
   Ok(())
 }
 
-fn color(r: &Ray, world: &HitableList, depth: isize) -> Vec3 {
+fn color(r: &Ray, world: &dyn Hitable, depth: isize) -> Vec3 {
   if let Some(mut rec) = world.hit(r, 0.001, std::f64::INFINITY) {
     if depth < 50 {
       if let Some((attenuation, scattered)) = rec
@@ -183,6 +193,7 @@ pub fn random_scene() -> HitableList {
         b as f64 + 0.9 * rng.gen::<f64>(),
       );
 
+      //continue;
       if (center - vec3(4.0, 0.2, 0.0)).length() > 0.9 {
         if choose_mat < 0.8 {
           // diffuse

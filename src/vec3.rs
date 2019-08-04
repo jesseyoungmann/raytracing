@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Vec3 {
@@ -133,6 +133,19 @@ impl MulAssign for Vec3 {
 impl DivAssign for Vec3 {
   fn div_assign(&mut self, other: Self) {
     *self = *self / other;
+  }
+}
+
+impl Index<usize> for Vec3 {
+  type Output = f64;
+
+  fn index(&self, index: usize) -> &Self::Output {
+    match index {
+      0 => &self.x,
+      1 => &self.y,
+      2 => &self.z,
+      _ => panic!("Invalid index into Vec3"),
+    }
   }
 }
 
