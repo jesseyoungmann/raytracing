@@ -10,6 +10,7 @@ mod bvh;
 mod camera;
 mod hitable;
 mod material;
+mod perlin;
 mod ray;
 mod texture;
 pub mod vec3;
@@ -61,7 +62,7 @@ fn main() -> std::io::Result<()> {
   };
 
   let world = random_scene();
-  let (camera, world) = two_spheres_scene(nx as f64 / ny as f64);
+  let (camera, world) = perlin_spheres_scene(nx as f64 / ny as f64);
 
   let world = Arc::new(world);
   let camera = Arc::new(camera);
@@ -265,6 +266,40 @@ pub fn two_spheres_scene(ratio: f64) -> (Camera, HitableList) {
   let list: Vec<Sphere> = vec![
     Sphere::new(vec3(0.0, -10.0, 0.0), 10.0, checker.clone()),
     Sphere::new(vec3(0.0, 10.0, 0.0), 10.0, checker),
+  ];
+
+  let list = HitableList::new(list);
+
+  let lookfrom = vec3(13.0, 2.0, 3.0);
+  let lookat = vec3(0.0, 0.0, 0.0);
+
+  let dist_to_focus = 10.0;
+  let aperture = 0.0;
+
+  (
+    Camera::new(
+      lookfrom,
+      lookat,
+      vec3(0.0, 1.0, 0.0),
+      20.0,
+      ratio,
+      aperture,
+      dist_to_focus,
+    ),
+    list,
+  )
+}
+
+pub fn perlin_spheres_scene(ratio: f64) -> (Camera, HitableList) {
+  let pertext = Texture::new_noise(5.0);
+
+  let list: Vec<Sphere> = vec![
+    Sphere::new(
+      vec3(0.0, -1000.0, 0.0),
+      1000.0,
+      Lambertian::new(pertext.clone()),
+    ),
+    Sphere::new(vec3(0.0, 2.0, 0.0), 2.0, Lambertian::new(pertext)),
   ];
 
   let list = HitableList::new(list);

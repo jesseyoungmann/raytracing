@@ -1,4 +1,5 @@
-use crate::vec3::Vec3;
+use crate::perlin::Perlin;
+use crate::vec3::*;
 
 #[derive(Debug, Clone)]
 pub enum Texture {
@@ -8,6 +9,10 @@ pub enum Texture {
   CheckerTexture {
     odd: Box<Texture>,
     even: Box<Texture>,
+  },
+  NoiseTexture {
+    noise: Perlin,
+    scale: f64,
   },
 }
 
@@ -21,6 +26,10 @@ impl Texture {
         let sines = (10.0 * p.x).sin() * (10.0 * p.y).sin() * (10.0 * p.z).sin();
         if sines < 0.0 { odd } else { even }.value(u, v, p)
       }
+      NoiseTexture { noise, scale } => {
+        //scalar(1.0) * scalar(noise.noise(scalar(*scale) * p))
+        scalar(0.5) * scalar(1.0 + (scale * p.z + 10.0 * noise.turb(p, 7)).sin())
+      }
     }
   }
 
@@ -32,6 +41,13 @@ impl Texture {
     CheckerTexture {
       odd: Box::new(odd),
       even: Box::new(even),
+    }
+  }
+
+  pub fn new_noise(scale: f64) -> Self {
+    NoiseTexture {
+      noise: Perlin::new(),
+      scale,
     }
   }
 }
