@@ -11,14 +11,24 @@ pub enum Material {
   OkayLambertian(Lambertian),
   OkayMetal(Metal),
   OkayDielectric(Dielectric),
+  OkayDiffuseLight(DiffuseLight),
 }
 
+use Material::*;
 impl Material {
   pub fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
     match self {
-      Material::OkayLambertian(inner) => inner.scatter(r_in, rec),
-      Material::OkayMetal(inner) => inner.scatter(r_in, rec),
-      Material::OkayDielectric(inner) => inner.scatter(r_in, rec),
+      OkayLambertian(inner) => inner.scatter(r_in, rec),
+      OkayMetal(inner) => inner.scatter(r_in, rec),
+      OkayDielectric(inner) => inner.scatter(r_in, rec),
+      OkayDiffuseLight(inner) => inner.scatter(r_in, rec),
+    }
+  }
+
+  pub fn emitted(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
+    match self {
+      OkayDiffuseLight(inner) => inner.emitted(u, v, p),
+      _ => scalar(0.0),
     }
   }
 }
@@ -30,11 +40,11 @@ pub struct Lambertian {
 
 impl Lambertian {
   pub fn new(texture: Texture) -> Material {
-    Material::OkayLambertian(Self { albedo: texture })
+    OkayLambertian(Self { albedo: texture })
   }
 
   pub fn new_from_color(albedo: Vec3) -> Material {
-    Material::OkayLambertian(Self {
+    OkayLambertian(Self {
       albedo: Texture::new_constant(albedo),
     })
   }
@@ -55,7 +65,7 @@ pub struct Metal {
 
 impl Metal {
   pub fn new(albedo: Vec3, fuzz: f64) -> Material {
-    Material::OkayMetal(Self {
+    OkayMetal(Self {
       albedo,
       fuzz: if fuzz < 1.0 { fuzz } else { 1.0 },
     })
@@ -83,7 +93,7 @@ pub struct Dielectric {
 
 impl Dielectric {
   pub fn new(ref_idx: f64) -> Material {
-    Material::OkayDielectric(Self { ref_idx })
+    OkayDielectric(Self { ref_idx })
   }
 
   pub fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
@@ -141,4 +151,23 @@ fn schlick(cosine: f64, ref_idx: f64) -> f64 {
   let r0 = (1.0 - ref_idx) / (1.0 + ref_idx);
   let r0 = r0 * r0;
   r0 + (1.0 - r0) * (1.0 - cosine).powf(5.0)
+}
+
+#[derive(Debug, Clone)]
+pub struct DiffuseLight {
+  emit: Texture,
+}
+
+impl DiffuseLight {
+  pub fn new(emit: Texture) -> Material {
+    OkayDiffuseLight(Self { emit })
+  }
+
+  pub fn scatter(&self, _r_in: &Ray, _rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
+    None
+  }
+
+  pub fn emitted(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
+    self.emit.value(u, v, p)
+  }
 }

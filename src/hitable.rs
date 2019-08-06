@@ -6,6 +6,8 @@ use crate::vec3::*;
 #[derive(Default)]
 pub struct HitRecord<'a> {
   pub t: f64,
+  pub u: f64,
+  pub v: f64,
   pub p: Vec3,
   pub normal: Vec3,
   pub material: Option<&'a Material>,
@@ -47,6 +49,9 @@ impl Hitable for Sphere {
       if temp < t_max && temp > t_min {
         rec.t = temp;
         rec.p = r.point_at_parameter(rec.t);
+        let (u, v) = get_sphere_uv(rec.p);
+        rec.u = u;
+        rec.v = v;
         rec.normal = (rec.p - self.center) / scalar(self.radius);
         rec.material = Some(&self.material);
         return Some(rec);
@@ -56,6 +61,9 @@ impl Hitable for Sphere {
       if temp < t_max && temp > t_min {
         rec.t = temp;
         rec.p = r.point_at_parameter(rec.t);
+        let (u, v) = get_sphere_uv(rec.p);
+        rec.u = u;
+        rec.v = v;
         rec.normal = (rec.p - self.center) / scalar(self.radius);
         rec.material = Some(&self.material);
         return Some(rec);
@@ -107,4 +115,13 @@ impl Hitable for HitableList {
     }
     Some(boxy)
   }
+}
+
+fn get_sphere_uv(p: Vec3) -> (f64, f64) {
+  let phi = p.z.atan2(p.x);
+  let theta = p.y.asin();
+  let pi = std::f64::consts::PI;
+  let u = 1.0 - (phi + pi) / (2.0 * pi);
+  let v = (theta + pi / 2.0) / pi;
+  (u, v)
 }

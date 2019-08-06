@@ -44,25 +44,8 @@ fn main() -> std::io::Result<()> {
   let ny: isize = 100 * factor;
   let ns: isize = quality;
 
-  let camera = {
-    let lookfrom = vec3(13.0, 2.0, 3.0);
-    let lookat = vec3(0.0, 0.0, 0.0);
-    let dist_to_focus = 10.0;
-    let aperture = 0.1;
-
-    Camera::new(
-      lookfrom,
-      lookat,
-      vec3(0.0, 1.0, 0.0),
-      20.0,
-      nx as f64 / ny as f64,
-      aperture,
-      dist_to_focus,
-    )
-  };
-
-  let world = random_scene();
-  let (camera, world) = perlin_spheres_scene(nx as f64 / ny as f64);
+  //let (camera, world) = light_sphere_scene(nx as f64 / ny as f64);
+  let (camera, world) = random_scene(nx as f64 / ny as f64);
 
   let world = Arc::new(world);
   let camera = Arc::new(camera);
@@ -115,6 +98,15 @@ fn main() -> std::io::Result<()> {
 
           col /= scalar(ns as f64);
           col = vec3(col.x.sqrt(), col.y.sqrt(), col.z.sqrt());
+          if col.x > 1.0 {
+            col.x = 1.0;
+          }
+          if col.y > 1.0 {
+            col.y = 1.0;
+          }
+          if col.z > 1.0 {
+            col.z = 1.0;
+          }
           let ir = (255.99 * col.x) as isize;
           let ig = (255.99 * col.y) as isize;
           let ib = (255.99 * col.z) as isize;
@@ -147,6 +139,12 @@ fn main() -> std::io::Result<()> {
 
 fn color(r: &Ray, world: &dyn Hitable, depth: isize) -> Vec3 {
   if let Some(mut rec) = world.hit(r, 0.001, std::f64::INFINITY) {
+    // ON A DIFFUSE LIGHT, rec.u and rec.v don't matter, texture is constant
+    // internally so it just returns color
+    let emitted = rec
+      .material
+      .expect("Missing material somewhere")
+      .emitted(rec.u, rec.v, rec.p);
     if depth < 50 {
       if let Some((attenuation, scattered)) = rec
         .material
@@ -154,15 +152,18 @@ fn color(r: &Ray, world: &dyn Hitable, depth: isize) -> Vec3 {
         .as_ref()
         .and_then(|m| m.scatter(r, &mut rec))
       {
-        return attenuation * color(&scattered, world, depth + 1);
+        return emitted + attenuation * color(&scattered, world, depth + 1);
       }
     }
-    return scalar(0.0);
+    return emitted;
   }
 
-  let unit_direction = r.direction().unit();
-  let t = 0.5 * (unit_direction.y + 1.0);
-  scalar(1.0 - t) * scalar(1.0) + scalar(t) * vec3(0.5, 0.7, 1.0)
+  //let unit_direction = r.direction().unit();
+  //let t = 0.5 * (unit_direction.y + 1.0);
+  //scalar(1.0 - t) * scalar(1.0) + scalar(t) * vec3(0.5, 0.7, 1.0)
+
+  // skybox is black
+  scalar(0.01)
 }
 
 pub fn random_in_unit_sphere() -> Vec3 {
@@ -177,16 +178,18 @@ pub fn random_in_unit_sphere() -> Vec3 {
   p
 }
 
-pub fn random_scene() -> HitableList {
+pub fn random_scene(ratio: f64) -> (Camera, HitableList) {
   let mut list: Vec<Sphere> = vec![];
 
   list.push(Sphere::new(
     vec3(0.0, -1000.0, 0.0),
     1000.0,
-    Lambertian::new(Texture::new_checker(
-      Texture::new_constant(vec3(0.2, 0.3, 0.1)),
-      Texture::new_constant(vec3(0.9, 0.9, 0.9)),
-    )),
+    //DiffuseLight::new(Texture::new_constant(scalar(4.0))),
+    Lambertian::new(Texture::new_constant(vec3(0.5, 0.4, 0.6))),
+    //Lambertian::new(Texture::new_checker(
+    //  Texture::new_constant(vec3(0.2, 0.3, 0.1)),
+    //  Texture::new_constant(vec3(0.9, 0.9, 0.9)),
+    //)),
   ));
 
   let mut rng = rand::thread_rng();
@@ -202,7 +205,7 @@ pub fn random_scene() -> HitableList {
 
       //continue;
       if (center - vec3(4.0, 0.2, 0.0)).length() > 0.9 {
-        if choose_mat < 0.8 {
+        if choose_mat < 0.70 {
           // diffuse
           list.push(Sphere::new(
             center,
@@ -213,7 +216,7 @@ pub fn random_scene() -> HitableList {
               rng.gen::<f64>() * rng.gen::<f64>(),
             )),
           ));
-        } else if choose_mat < 0.95 {
+        } else if choose_mat < 0.85 {
           //metal
           list.push(Sphere::new(
             center,
@@ -227,22 +230,31 @@ pub fn random_scene() -> HitableList {
               0.5 * rng.gen::<f64>(),
             ),
           ));
-        } else {
+        } else if choose_mat < 0.90 {
           // glass
           list.push(Sphere::new(center, 0.2, Dielectric::new(1.5)));
+        } else {
+          list.push(Sphere::new(
+            center,
+            0.2,
+            DiffuseLight::new(Texture::new_constant(vec3(
+              4.0 * rng.gen::<f64>(),
+              4.0 * rng.gen::<f64>(),
+              4.0 * rng.gen::<f64>(),
+            ))),
+          ));
         }
       }
     }
   }
 
   list.push(Sphere::new(vec3(0.0, 1.0, 0.0), 1.0, Dielectric::new(1.5)));
-  /*
   list.push(Sphere::new(
-    vec3(0.0, 1.0, 0.0),
-    0.94,
-    Dielectric::new(-1.5),
+    vec3(0.0, 3.0, 0.0),
+    1.0,
+    //Dielectric::new(-1.5),
+    DiffuseLight::new(Texture::new_constant(scalar(100.0))),
   ));
-  */
   list.push(Sphere::new(
     vec3(-4.0, 1.0, 0.0),
     1.0,
@@ -254,7 +266,26 @@ pub fn random_scene() -> HitableList {
     Metal::new(vec3(0.7, 0.6, 0.5), 0.0),
   ));
 
-  HitableList::new(list)
+  let list = HitableList::new(list);
+
+  let camera = {
+    let lookfrom = vec3(13.0, 2.0, 3.0);
+    let lookat = vec3(0.0, 0.0, 0.0);
+    let dist_to_focus = 10.0;
+    let aperture = 0.1;
+
+    Camera::new(
+      lookfrom,
+      lookat,
+      vec3(0.0, 1.0, 0.0),
+      20.0,
+      ratio,
+      aperture,
+      dist_to_focus,
+    )
+  };
+
+  (camera, list)
 }
 
 pub fn two_spheres_scene(ratio: f64) -> (Camera, HitableList) {
@@ -300,6 +331,38 @@ pub fn perlin_spheres_scene(ratio: f64) -> (Camera, HitableList) {
       Lambertian::new(pertext.clone()),
     ),
     Sphere::new(vec3(0.0, 2.0, 0.0), 2.0, Lambertian::new(pertext)),
+  ];
+
+  let list = HitableList::new(list);
+
+  let lookfrom = vec3(13.0, 2.0, 3.0);
+  let lookat = vec3(0.0, 0.0, 0.0);
+
+  let dist_to_focus = 10.0;
+  let aperture = 0.0;
+
+  (
+    Camera::new(
+      lookfrom,
+      lookat,
+      vec3(0.0, 1.0, 0.0),
+      20.0,
+      ratio,
+      aperture,
+      dist_to_focus,
+    ),
+    list,
+  )
+}
+
+pub fn light_sphere_scene(ratio: f64) -> (Camera, HitableList) {
+  let perlin = Lambertian::new(Texture::new_constant(vec3(0.0, 0.0, 0.5)));
+
+  let light = DiffuseLight::new(Texture::new_constant(scalar(4.0)));
+
+  let list: Vec<Sphere> = vec![
+    Sphere::new(vec3(0.0, -10.0, 0.0), 10.0, perlin),
+    Sphere::new(vec3(0.0, 10.0, 0.0), 10.0, light),
   ];
 
   let list = HitableList::new(list);
