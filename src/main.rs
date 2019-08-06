@@ -50,16 +50,15 @@ fn main() -> std::io::Result<()> {
   let world = Arc::new(world);
   let camera = Arc::new(camera);
 
-  let core_count: isize = 4;
-  let outer_result: Arc<Mutex<Vec<Option<_>>>> =
-    Arc::new(Mutex::new(vec![None; core_count as usize]));
+  let threads: isize = 8;
+  let outer_result: Arc<Mutex<Vec<Option<_>>>> = Arc::new(Mutex::new(vec![None; threads as usize]));
 
   let mut handles = vec![];
-  for main_x in 0..core_count {
+  for main_x in 0..threads {
     let x = main_x as isize;
     let nx = nx;
     let ny = ny;
-    let ns = ns;
+    let ns = ns / threads;
 
     let camera = Arc::clone(&camera);
     let outer_result = Arc::clone(&outer_result);
@@ -75,12 +74,9 @@ fn main() -> std::io::Result<()> {
 
       let mut rng = rand::thread_rng();
 
-      let mut result = vec![];
+      let mut result: Vec<Vec3> = vec![];
 
-      for j in 0..ny / core_count {
-        let j = j + (ny / core_count) * x;
-        let j = ny - j;
-
+      for j in (0..ny).rev() {
         for i in 0..nx {
           let mut col = scalar(0.0);
 
@@ -97,21 +93,8 @@ fn main() -> std::io::Result<()> {
           }
 
           col /= scalar(ns as f64);
-          col = vec3(col.x.sqrt(), col.y.sqrt(), col.z.sqrt());
-          if col.x > 1.0 {
-            col.x = 1.0;
-          }
-          if col.y > 1.0 {
-            col.y = 1.0;
-          }
-          if col.z > 1.0 {
-            col.z = 1.0;
-          }
-          let ir = (255.99 * col.x) as isize;
-          let ig = (255.99 * col.y) as isize;
-          let ib = (255.99 * col.z) as isize;
 
-          result.push((ir, ig, ib));
+          result.push(col);
         }
       }
 
@@ -126,11 +109,28 @@ fn main() -> std::io::Result<()> {
   }
 
   file.write_all(format!("P3\n{} {}\n255\n", nx, ny).as_bytes())?;
-  let mut result = vec![];
+  let mut result = vec![scalar(0.0); (nx * ny) as usize];
   for r in outer_result.lock().unwrap().iter_mut() {
-    result.append(r.as_mut().unwrap());
+    for (col, other) in result.iter_mut().zip(r.as_ref().unwrap().iter()) {
+      *col += *other
+    }
   }
-  for (ir, ig, ib) in result {
+  for mut col in result {
+    col /= scalar(threads as f64);
+    col = vec3(col.x.sqrt(), col.y.sqrt(), col.z.sqrt());
+    if col.x > 1.0 {
+      col.x = 1.0;
+    }
+    if col.y > 1.0 {
+      col.y = 1.0;
+    }
+    if col.z > 1.0 {
+      col.z = 1.0;
+    }
+    let ir = (255.99 * col.x) as isize;
+    let ig = (255.99 * col.y) as isize;
+    let ib = (255.99 * col.z) as isize;
+
     file.write(format!("{} {} {}\n", ir, ig, ib).as_bytes())?;
   }
 
@@ -253,7 +253,7 @@ pub fn random_scene(ratio: f64) -> (Camera, HitableList) {
     vec3(0.0, 3.0, 0.0),
     1.0,
     //Dielectric::new(-1.5),
-    DiffuseLight::new(Texture::new_constant(scalar(100.0))),
+    DiffuseLight::new(Texture::new_constant(scalar(50.0))),
   ));
   list.push(Sphere::new(
     vec3(-4.0, 1.0, 0.0),
