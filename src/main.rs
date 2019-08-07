@@ -171,7 +171,7 @@ pub fn random_in_unit_sphere() -> Vec3 {
   let mut rng = rand::thread_rng();
   loop {
     p = scalar(2.0) * vec3(rng.gen(), rng.gen(), rng.gen()) - scalar(1.0);
-    if p.squared_length() >= 1.0 {
+    if p.squared_length() < 1.0 {
       break;
     }
   }
