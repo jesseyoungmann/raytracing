@@ -45,7 +45,7 @@ fn main() -> std::io::Result<()> {
   let ns: isize = quality;
 
   //let (camera, world) = light_sphere_scene(nx as f64 / ny as f64);
-  let (camera, world) = cornell_box_scene(nx as f64 / ny as f64);
+  let (camera, world) = random_scene(nx as f64 / ny as f64);
 
   let world = Arc::new(world);
   let camera = Arc::new(camera);
@@ -178,11 +178,10 @@ pub fn random_in_unit_sphere() -> Vec3 {
   p
 }
 
-/*
 pub fn random_scene(ratio: f64) -> (Camera, HitableList) {
-  let mut list: Vec<Sphere> = vec![];
+  let mut list: Vec<Box<dyn Hitable>> = vec![];
 
-  list.push(Sphere::new(
+  list.push(Box::new(Sphere::new(
     vec3(0.0, -1000.0, 0.0),
     1000.0,
     //DiffuseLight::new(Texture::new_constant(scalar(4.0))),
@@ -191,7 +190,7 @@ pub fn random_scene(ratio: f64) -> (Camera, HitableList) {
     //  Texture::new_constant(vec3(0.2, 0.3, 0.1)),
     //  Texture::new_constant(vec3(0.9, 0.9, 0.9)),
     //)),
-  ));
+  )));
 
   let mut rng = rand::thread_rng();
 
@@ -208,7 +207,7 @@ pub fn random_scene(ratio: f64) -> (Camera, HitableList) {
       if (center - vec3(4.0, 0.2, 0.0)).length() > 0.9 {
         if choose_mat < 0.70 {
           // diffuse
-          list.push(Sphere::new(
+          list.push(Box::new(Sphere::new(
             center,
             0.2,
             Lambertian::new_from_color(vec3(
@@ -216,10 +215,10 @@ pub fn random_scene(ratio: f64) -> (Camera, HitableList) {
               rng.gen::<f64>() * rng.gen::<f64>(),
               rng.gen::<f64>() * rng.gen::<f64>(),
             )),
-          ));
+          )));
         } else if choose_mat < 0.85 {
           //metal
-          list.push(Sphere::new(
+          list.push(Box::new(Sphere::new(
             center,
             0.2,
             Metal::new(
@@ -230,12 +229,12 @@ pub fn random_scene(ratio: f64) -> (Camera, HitableList) {
               ),
               0.5 * rng.gen::<f64>(),
             ),
-          ));
+          )));
         } else if choose_mat < 0.90 {
           // glass
-          list.push(Sphere::new(center, 0.2, Dielectric::new(1.5)));
+          list.push(Box::new(Sphere::new(center, 0.2, Dielectric::new(1.5))));
         } else {
-          list.push(Sphere::new(
+          list.push(Box::new(Sphere::new(
             center,
             0.2,
             DiffuseLight::new(Texture::new_constant(vec3(
@@ -243,29 +242,33 @@ pub fn random_scene(ratio: f64) -> (Camera, HitableList) {
               4.0 * rng.gen::<f64>(),
               4.0 * rng.gen::<f64>(),
             ))),
-          ));
+          )));
         }
       }
     }
   }
 
-  list.push(Sphere::new(vec3(0.0, 1.0, 0.0), 1.0, Dielectric::new(1.5)));
-  list.push(Sphere::new(
+  list.push(Box::new(Sphere::new(
+    vec3(0.0, 1.0, 0.0),
+    1.0,
+    Dielectric::new(1.5),
+  )));
+  list.push(Box::new(Sphere::new(
     vec3(0.0, 3.0, 0.0),
     1.0,
     //Dielectric::new(-1.5),
     DiffuseLight::new(Texture::new_constant(scalar(50.0))),
-  ));
-  list.push(Sphere::new(
+  )));
+  list.push(Box::new(Sphere::new(
     vec3(-4.0, 1.0, 0.0),
     1.0,
     Lambertian::new_from_color(vec3(0.4, 0.2, 0.1)),
-  ));
-  list.push(Sphere::new(
+  )));
+  list.push(Box::new(Sphere::new(
     vec3(4.0, 1.0, 0.0),
     1.0,
     Metal::new(vec3(0.7, 0.6, 0.5), 0.0),
-  ));
+  )));
 
   let list = HitableList::new(list);
 
@@ -289,6 +292,7 @@ pub fn random_scene(ratio: f64) -> (Camera, HitableList) {
   (camera, list)
 }
 
+/*
 pub fn two_spheres_scene(ratio: f64) -> (Camera, HitableList) {
   let checker = Lambertian::new(Texture::new_checker(
     Texture::new_constant(vec3(0.2, 0.3, 0.1)),
