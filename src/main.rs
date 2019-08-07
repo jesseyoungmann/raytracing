@@ -45,7 +45,7 @@ fn main() -> std::io::Result<()> {
   let ns: isize = quality;
 
   //let (camera, world) = light_sphere_scene(nx as f64 / ny as f64);
-  let (camera, world) = random_scene(nx as f64 / ny as f64);
+  let (camera, world) = cornell_box_scene(nx as f64 / ny as f64);
 
   let world = Arc::new(world);
   let camera = Arc::new(camera);
@@ -68,7 +68,7 @@ fn main() -> std::io::Result<()> {
       let mut temp = world
         .list
         .iter()
-        .map(|s| s as &Hitable)
+        .map(|s| s.as_ref())
         .collect::<Vec<&dyn Hitable>>();
       let bvh_world = BvhNode::new(&mut temp, 0.0, 0.0);
 
@@ -163,7 +163,7 @@ fn color(r: &Ray, world: &dyn Hitable, depth: isize) -> Vec3 {
   //scalar(1.0 - t) * scalar(1.0) + scalar(t) * vec3(0.5, 0.7, 1.0)
 
   // skybox is black
-  scalar(0.01)
+  scalar(0.0)
 }
 
 pub fn random_in_unit_sphere() -> Vec3 {
@@ -178,6 +178,7 @@ pub fn random_in_unit_sphere() -> Vec3 {
   p
 }
 
+/*
 pub fn random_scene(ratio: f64) -> (Camera, HitableList) {
   let mut list: Vec<Sphere> = vec![];
 
@@ -379,6 +380,110 @@ pub fn light_sphere_scene(ratio: f64) -> (Camera, HitableList) {
       lookat,
       vec3(0.0, 1.0, 0.0),
       20.0,
+      ratio,
+      aperture,
+      dist_to_focus,
+    ),
+    list,
+  )
+}
+*/
+
+pub fn simple_light_scene(ratio: f64) -> (Camera, HitableList) {
+  let pertext = Texture::new_noise(4.0);
+  let list: Vec<Box<dyn Hitable>> = vec![
+    Box::new(Sphere::new(
+      vec3(0.0, -1000.0, 0.0),
+      1000.0,
+      Lambertian::new(pertext.clone()),
+    )),
+    Box::new(Sphere::new(
+      vec3(0.0, 2.0, 0.0),
+      2.0,
+      Lambertian::new(pertext),
+    )),
+    //Box::new(Sphere::new(
+    //    vec3(0.0, 7.0, 0.0), 2.0, DiffuseLight::new(Texture::new_constant(scalar(4.0)))
+    //)),
+    Box::new(XYRect::new(
+      3.0,
+      5.0,
+      1.0,
+      3.0,
+      -2.0,
+      DiffuseLight::new(Texture::new_constant(scalar(4.0))),
+    )),
+  ];
+
+  let list = HitableList::new(list);
+
+  let lookfrom = vec3(30.0, 2.0, 3.0);
+  let lookat = vec3(0.0, 0.0, 0.0);
+
+  let dist_to_focus = 10.0;
+  let aperture = 0.0;
+
+  (
+    Camera::new(
+      lookfrom,
+      lookat,
+      vec3(0.0, 1.0, 0.0),
+      20.0,
+      ratio,
+      aperture,
+      dist_to_focus,
+    ),
+    list,
+  )
+}
+
+pub fn cornell_box_scene(ratio: f64) -> (Camera, HitableList) {
+  let red = Lambertian::new(Texture::new_constant(vec3(0.65, 0.05, 0.05)));
+  let white = Lambertian::new(Texture::new_constant(vec3(0.73, 0.73, 0.73)));
+  let green = Lambertian::new(Texture::new_constant(vec3(0.12, 0.45, 0.15)));
+  let light = DiffuseLight::new(Texture::new_constant(scalar(15.0)));
+
+  let list: Vec<Box<dyn Hitable>> = vec![
+    // Left wall
+    Box::new(FlipNormals::new_yz(YZRect::new(
+      0.0, 555.0, 0.0, 565.0, 555.0, green,
+    ))),
+    // Right wall
+    Box::new(YZRect::new(0.0, 555.0, 0.0, 555.0, 0.0, red)),
+    // Light
+    Box::new(XZRect::new(213.0, 343.0, 227.0, 332.0, 554.0, light)),
+    // Top wall
+    Box::new(FlipNormals::new_xz(XZRect::new(
+      0.0,
+      555.0,
+      0.0,
+      555.0,
+      555.0,
+      white.clone(),
+    ))),
+    // Bottom wall
+    Box::new(XZRect::new(0.0, 555.0, 0.0, 555.0, 0.0, white.clone())),
+    //Back wall
+    Box::new(FlipNormals::new_xy(XYRect::new(
+      0.0, 555.0, 0.0, 555.0, 555.0, white,
+    ))),
+  ];
+
+  let list = HitableList::new(list);
+
+  let lookfrom = vec3(278.0, 278.0, -800.0);
+  let lookat = vec3(278.0, 278.0, 0.0);
+
+  let dist_to_focus = 10.0;
+  let aperture = 0.0;
+  let vfov = 40.0;
+
+  (
+    Camera::new(
+      lookfrom,
+      lookat,
+      vec3(0.0, 1.0, 0.0),
+      vfov,
       ratio,
       aperture,
       dist_to_focus,

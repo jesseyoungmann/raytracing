@@ -13,7 +13,7 @@ pub struct HitRecord<'a> {
   pub material: Option<&'a Material>,
 }
 
-pub trait Hitable: std::fmt::Debug {
+pub trait Hitable: std::fmt::Debug + Send + Sync {
   fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
   fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb>;
 }
@@ -82,11 +82,11 @@ impl Hitable for Sphere {
 
 #[derive(Debug)]
 pub struct HitableList {
-  pub list: Vec<Sphere>,
+  pub list: Vec<Box<dyn Hitable>>,
 }
 
 impl HitableList {
-  pub fn new(list: Vec<Sphere>) -> Self {
+  pub fn new(list: Vec<Box<dyn Hitable>>) -> Self {
     Self { list }
   }
 }
@@ -124,4 +124,206 @@ fn get_sphere_uv(p: Vec3) -> (f64, f64) {
   let u = 1.0 - (phi + pi) / (2.0 * pi);
   let v = (theta + pi / 2.0) / pi;
   (u, v)
+}
+
+#[derive(Debug, Clone)]
+pub struct XYRect {
+  pub material: Material,
+  pub x0: f64,
+  pub x1: f64,
+  pub y0: f64,
+  pub y1: f64,
+  pub k: f64,
+}
+
+impl XYRect {
+  pub fn new(x0: f64, x1: f64, y0: f64, y1: f64, k: f64, material: Material) -> Self {
+    Self {
+      x0,
+      x1,
+      y0,
+      y1,
+      k,
+      material,
+    }
+  }
+}
+
+impl Hitable for XYRect {
+  fn hit(&self, r: &Ray, t0: f64, t1: f64) -> Option<HitRecord> {
+    let t = (self.k - r.origin().z) / r.direction().z;
+    if t < t0 || t > t1 {
+      return None;
+    }
+    let x = r.origin().x + t * r.direction().x;
+    let y = r.origin().y + t * r.direction().y;
+    if x < self.x0 || x > self.x1 || y < self.y0 || y > self.y1 {
+      return None;
+    }
+
+    Some(HitRecord {
+      u: (x - self.x0) / (self.x1 - self.x0),
+      v: (y - self.y0) / (self.y1 - self.y0),
+      t: t,
+      material: Some(&self.material),
+      p: r.point_at_parameter(t),
+      normal: vec3(0.0, 0.0, 1.0),
+    })
+  }
+
+  fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<Aabb> {
+    Some(Aabb::new(
+      vec3(self.x0, self.y0, self.k - 0.0001),
+      vec3(self.x1, self.y1, self.k + 0.0001),
+    ))
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct XZRect {
+  pub material: Material,
+  pub x0: f64,
+  pub x1: f64,
+  pub z0: f64,
+  pub z1: f64,
+  pub k: f64,
+}
+
+impl XZRect {
+  pub fn new(x0: f64, x1: f64, z0: f64, z1: f64, k: f64, material: Material) -> Self {
+    Self {
+      x0,
+      x1,
+      z0,
+      z1,
+      k,
+      material,
+    }
+  }
+}
+
+impl Hitable for XZRect {
+  fn hit(&self, r: &Ray, t0: f64, t1: f64) -> Option<HitRecord> {
+    let t = (self.k - r.origin().y) / r.direction().y;
+    if t < t0 || t > t1 {
+      return None;
+    }
+    let x = r.origin().x + t * r.direction().x;
+    let z = r.origin().z + t * r.direction().z;
+    if x < self.x0 || x > self.x1 || z < self.z0 || z > self.z1 {
+      return None;
+    }
+
+    Some(HitRecord {
+      u: (x - self.x0) / (self.x1 - self.x0),
+      v: (z - self.z0) / (self.z1 - self.z0),
+      t: t,
+      material: Some(&self.material),
+      p: r.point_at_parameter(t),
+      normal: vec3(0.0, 1.0, 0.0),
+    })
+  }
+
+  fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<Aabb> {
+    Some(Aabb::new(
+      vec3(self.x0, self.k - 0.0001, self.z0),
+      vec3(self.x1, self.k + 0.0001, self.z1),
+    ))
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct YZRect {
+  pub material: Material,
+  pub y0: f64,
+  pub y1: f64,
+  pub z0: f64,
+  pub z1: f64,
+  pub k: f64,
+}
+
+impl YZRect {
+  pub fn new(y0: f64, y1: f64, z0: f64, z1: f64, k: f64, material: Material) -> Self {
+    Self {
+      y0,
+      y1,
+      z0,
+      z1,
+      k,
+      material,
+    }
+  }
+}
+
+impl Hitable for YZRect {
+  fn hit(&self, r: &Ray, t0: f64, t1: f64) -> Option<HitRecord> {
+    let t = (self.k - r.origin().x) / r.direction().x;
+    if t < t0 || t > t1 {
+      return None;
+    }
+    let y = r.origin().y + t * r.direction().y;
+    let z = r.origin().z + t * r.direction().z;
+    if y < self.y0 || y > self.y1 || z < self.z0 || z > self.z1 {
+      return None;
+    }
+
+    Some(HitRecord {
+      u: (y - self.y0) / (self.y1 - self.y0),
+      v: (z - self.z0) / (self.z1 - self.z0),
+      t: t,
+      material: Some(&self.material),
+      p: r.point_at_parameter(t),
+      normal: vec3(1.0, 0.0, 0.0),
+    })
+  }
+
+  fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<Aabb> {
+    Some(Aabb::new(
+      vec3(self.k - 0.0001, self.y0, self.z0),
+      vec3(self.k + 0.0001, self.y1, self.z1),
+    ))
+  }
+}
+
+#[derive(Debug, Clone)]
+pub enum FlipNormals {
+  OkayXY(XYRect),
+  OkayXZ(XZRect),
+  OkayYZ(YZRect),
+}
+
+use FlipNormals::*;
+
+impl FlipNormals {
+  pub fn new_xy(hitable: XYRect) -> Self {
+    OkayXY(hitable)
+  }
+  pub fn new_xz(hitable: XZRect) -> Self {
+    OkayXZ(hitable)
+  }
+  pub fn new_yz(hitable: YZRect) -> Self {
+    OkayYZ(hitable)
+  }
+}
+
+impl Hitable for FlipNormals {
+  fn hit(&self, r: &Ray, t0: f64, t1: f64) -> Option<HitRecord> {
+    let rec = match &self {
+      OkayXY(hitable) => hitable.hit(r, t0, t1),
+      OkayXZ(hitable) => hitable.hit(r, t0, t1),
+      OkayYZ(hitable) => hitable.hit(r, t0, t1),
+    };
+    if let Some(mut rec) = rec {
+      rec.normal = -rec.normal;
+      return Some(rec);
+    }
+    None
+  }
+  fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb> {
+    match &self {
+      OkayXY(hitable) => hitable.bounding_box(t0, t1),
+      OkayXZ(hitable) => hitable.bounding_box(t0, t1),
+      OkayYZ(hitable) => hitable.bounding_box(t0, t1),
+    }
+  }
 }
