@@ -1,5 +1,7 @@
 use std::fmt;
-use std::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{
+  Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Vec3 {
@@ -144,6 +146,17 @@ impl Index<usize> for Vec3 {
       0 => &self.x,
       1 => &self.y,
       2 => &self.z,
+      _ => panic!("Invalid index into Vec3"),
+    }
+  }
+}
+
+impl IndexMut<usize> for Vec3 {
+  fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    match index {
+      0 => &mut self.x,
+      1 => &mut self.y,
+      2 => &mut self.z,
       _ => panic!("Invalid index into Vec3"),
     }
   }

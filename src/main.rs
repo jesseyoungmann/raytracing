@@ -45,7 +45,7 @@ fn main() -> std::io::Result<()> {
   let ns: isize = quality;
 
   //let (camera, world) = light_sphere_scene(nx as f64 / ny as f64);
-  let (camera, world) = random_scene(nx as f64 / ny as f64);
+  let (camera, world) = cornell_box_scene(nx as f64 / ny as f64);
 
   let world = Arc::new(world);
   let camera = Arc::new(camera);
@@ -445,7 +445,7 @@ pub fn cornell_box_scene(ratio: f64) -> (Camera, HitableList) {
   let red = Lambertian::new(Texture::new_constant(vec3(0.65, 0.05, 0.05)));
   let white = Lambertian::new(Texture::new_constant(vec3(0.73, 0.73, 0.73)));
   let green = Lambertian::new(Texture::new_constant(vec3(0.12, 0.45, 0.15)));
-  let light = DiffuseLight::new(Texture::new_constant(scalar(15.0)));
+  let light = DiffuseLight::new(Texture::new_constant(scalar(7.0)));
 
   let list: Vec<Box<dyn Hitable>> = vec![
     // Left wall
@@ -455,8 +455,8 @@ pub fn cornell_box_scene(ratio: f64) -> (Camera, HitableList) {
     // Right wall
     Box::new(YZRect::new(0.0, 555.0, 0.0, 555.0, 0.0, red)),
     // Light
-    Box::new(XZRect::new(213.0, 343.0, 227.0, 332.0, 554.0, light)),
-    // Top wall
+    Box::new(XZRect::new(113.0, 443.0, 127.0, 432.0, 554.0, light)),
+    // Ceiling
     Box::new(FlipNormals::new_xz(XZRect::new(
       0.0,
       555.0,
@@ -465,12 +465,36 @@ pub fn cornell_box_scene(ratio: f64) -> (Camera, HitableList) {
       555.0,
       white.clone(),
     ))),
-    // Bottom wall
+    // Floor
     Box::new(XZRect::new(0.0, 555.0, 0.0, 555.0, 0.0, white.clone())),
-    //Back wall
+    // Back wall
     Box::new(FlipNormals::new_xy(XYRect::new(
-      0.0, 555.0, 0.0, 555.0, 555.0, white,
+      0.0,
+      555.0,
+      0.0,
+      555.0,
+      555.0,
+      white.clone(),
     ))),
+    // Cuboids
+    Box::new(Translate::new(
+      Box::new(RotateY::new(
+        Box::new(Cuboid::new(scalar(0.0), scalar(165.0), white.clone())),
+        -18.0,
+      )),
+      vec3(130.0, 0.0, 65.0),
+    )),
+    Box::new(Translate::new(
+      Box::new(RotateY::new(
+        Box::new(Cuboid::new(
+          scalar(0.0),
+          vec3(165.0, 330.0, 165.0),
+          white.clone(),
+        )),
+        15.0,
+      )),
+      vec3(265.0, 0.0, 295.0),
+    )),
   ];
 
   let list = HitableList::new(list);

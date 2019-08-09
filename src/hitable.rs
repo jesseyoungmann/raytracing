@@ -327,3 +327,175 @@ impl Hitable for FlipNormals {
     }
   }
 }
+
+#[derive(Debug)]
+pub struct Cuboid {
+  pmin: Vec3,
+  pmax: Vec3,
+  list: HitableList,
+}
+
+impl Hitable for Cuboid {
+  fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+    self.list.hit(r, t_min, t_max)
+  }
+  fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb> {
+    Some(Aabb::new(self.pmin, self.pmax))
+  }
+}
+
+impl Cuboid {
+  pub fn new(p0: Vec3, p1: Vec3, material: Material) -> Self {
+    let list: Vec<Box<dyn Hitable>> = vec![
+      Box::new(XYRect::new(p0.x, p1.x, p0.y, p1.y, p1.z, material.clone())),
+      Box::new(FlipNormals::new_xy(XYRect::new(
+        p0.x,
+        p1.x,
+        p0.y,
+        p1.y,
+        p0.z,
+        material.clone(),
+      ))),
+      Box::new(XZRect::new(p0.x, p1.x, p0.z, p1.z, p1.y, material.clone())),
+      Box::new(FlipNormals::new_xz(XZRect::new(
+        p0.x,
+        p1.x,
+        p0.z,
+        p1.z,
+        p1.y,
+        material.clone(),
+      ))),
+      Box::new(YZRect::new(p0.y, p1.y, p0.z, p1.z, p1.x, material.clone())),
+      Box::new(FlipNormals::new_yz(YZRect::new(
+        p0.y,
+        p1.y,
+        p0.z,
+        p1.z,
+        p0.x,
+        material.clone(),
+      ))),
+    ];
+
+    Self {
+      pmin: p0,
+      pmax: p1,
+      list: HitableList::new(list),
+    }
+  }
+}
+
+#[derive(Debug)]
+pub struct Translate {
+  hitable: Box<dyn Hitable>,
+  offset: Vec3,
+}
+
+impl Translate {
+  pub fn new(hitable: Box<dyn Hitable>, offset: Vec3) -> Self {
+    Self { hitable, offset }
+  }
+}
+
+impl Hitable for Translate {
+  fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+    let moved_r = Ray::new(r.origin() - self.offset, r.direction());
+    if let Some(mut rec) = self.hitable.hit(&moved_r, t_min, t_max) {
+      rec.p += self.offset;
+      return Some(rec);
+    }
+    None
+  }
+  fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb> {
+    if let Some(boxy) = self.hitable.bounding_box(t0, t1) {
+      return Some(Aabb::new(boxy.min + self.offset, boxy.max + self.offset));
+    }
+    None
+  }
+}
+
+#[derive(Debug)]
+pub struct RotateY {
+  hitable: Box<dyn Hitable>,
+  sin_theta: f64,
+  cos_theta: f64,
+  hasbox: bool,
+  boxy: Aabb,
+}
+
+impl RotateY {
+  pub fn new(hitable: Box<dyn Hitable>, angle: f64) -> Self {
+    let pi = std::f64::consts::PI;
+    let radians = (pi / 180.0) * angle;
+    let sin_theta = radians.sin();
+    let cos_theta = radians.cos();
+    let boxy = hitable.bounding_box(0.0, 1.0);
+    let hasbox = boxy.is_some();
+    let mut min = scalar(std::f64::MAX);
+    let mut max = scalar(std::f64::MIN);
+
+    //WHAT?
+    let bbox = boxy.expect("DOUBLE CHECK WHAT HAPPENS HERE"); //unwrap_or(Aabb::new(scalar(0.0),scalar(0.0)));
+    for i in 0..2 {
+      for j in 0..2 {
+        for k in 0..2 {
+          let x = i as f64 * bbox.max.x + (1.0 - i as f64) * bbox.min.x;
+          let y = j as f64 * bbox.max.y + (1.0 - j as f64) * bbox.min.y;
+          let z = k as f64 * bbox.max.z + (1.0 - k as f64) * bbox.min.z;
+
+          let newx = cos_theta * x + sin_theta * z;
+          let newz = -sin_theta * x + cos_theta * z;
+          let tester = vec3(newx, y, newz);
+          for c in 0..3 {
+            if tester[c] > max[c] {
+              max[c] = tester[c];
+            }
+            if tester[c] < min[c] {
+              min[c] = tester[c];
+            }
+          }
+        }
+      }
+    }
+    Self {
+      hitable,
+      sin_theta,
+      cos_theta,
+      hasbox,
+      boxy: Aabb::new(min, max),
+    }
+  }
+}
+
+impl Hitable for RotateY {
+  fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+    let mut origin = r.origin();
+    let mut direction = r.direction();
+    let cos_theta = self.cos_theta;
+    let sin_theta = self.sin_theta;
+    origin.x = cos_theta * r.origin().x - sin_theta * r.origin().z;
+    origin.z = sin_theta * r.origin().x + cos_theta * r.origin().z;
+    direction.x = cos_theta * r.direction().x - sin_theta * r.direction().z;
+    direction.z = sin_theta * r.direction().x + cos_theta * r.direction().z;
+    let rotated_r = Ray::new(origin, direction);
+
+    if let Some(mut rec) = self.hitable.hit(&rotated_r, t_min, t_max) {
+      let mut p = rec.p;
+      let mut normal = rec.normal;
+      p.x = cos_theta * rec.p.x + sin_theta * rec.p.z;
+      p.z = -sin_theta * rec.p.x + cos_theta * rec.p.z;
+      normal.x = cos_theta * rec.normal.x + sin_theta * rec.normal.z;
+      normal.z = -sin_theta * rec.normal.x + cos_theta * rec.normal.z;
+      rec.p = p;
+      rec.normal = normal;
+      return Some(rec);
+    }
+    None
+  }
+  fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb> {
+    if self.hasbox {
+      Some(self.boxy)
+    } else {
+      None
+    }
+  }
+}
