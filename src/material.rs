@@ -12,6 +12,7 @@ pub enum Material {
   OkayMetal(Metal),
   OkayDielectric(Dielectric),
   OkayDiffuseLight(DiffuseLight),
+  OkayIsotropic(Isotropic),
 }
 
 use Material::*;
@@ -22,6 +23,7 @@ impl Material {
       OkayMetal(inner) => inner.scatter(r_in, rec),
       OkayDielectric(inner) => inner.scatter(r_in, rec),
       OkayDiffuseLight(inner) => inner.scatter(r_in, rec),
+      OkayIsotropic(inner) => inner.scatter(r_in, rec),
     }
   }
 
@@ -169,5 +171,22 @@ impl DiffuseLight {
 
   pub fn emitted(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
     self.emit.value(u, v, p)
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct Isotropic {
+  albedo: Texture,
+}
+
+impl Isotropic {
+  pub fn new(albedo: Texture) -> Material {
+    OkayIsotropic(Self { albedo })
+  }
+
+  pub fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
+    let scattered = Ray::new(rec.p, random_in_unit_sphere());
+    let attenuation = self.albedo.value(rec.u, rec.v, rec.p);
+    Some((attenuation, scattered))
   }
 }

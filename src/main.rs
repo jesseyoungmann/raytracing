@@ -40,12 +40,12 @@ fn main() -> std::io::Result<()> {
     100
   };
 
-  let nx: isize = 200 * factor;
+  let nx: isize = 100 * factor;
   let ny: isize = 100 * factor;
   let ns: isize = quality;
 
   //let (camera, world) = light_sphere_scene(nx as f64 / ny as f64);
-  let (camera, world) = cornell_box_scene(nx as f64 / ny as f64);
+  let (camera, world) = cornell_smoke_scene(nx as f64 / ny as f64);
 
   let world = Arc::new(world);
   let camera = Arc::new(camera);
@@ -495,6 +495,90 @@ pub fn cornell_box_scene(ratio: f64) -> (Camera, HitableList) {
       )),
       vec3(265.0, 0.0, 295.0),
     )),
+  ];
+
+  let list = HitableList::new(list);
+
+  let lookfrom = vec3(278.0, 278.0, -800.0);
+  let lookat = vec3(278.0, 278.0, 0.0);
+
+  let dist_to_focus = 10.0;
+  let aperture = 0.0;
+  let vfov = 40.0;
+
+  (
+    Camera::new(
+      lookfrom,
+      lookat,
+      vec3(0.0, 1.0, 0.0),
+      vfov,
+      ratio,
+      aperture,
+      dist_to_focus,
+    ),
+    list,
+  )
+}
+
+pub fn cornell_smoke_scene(ratio: f64) -> (Camera, HitableList) {
+  let red = Lambertian::new(Texture::new_constant(vec3(0.65, 0.05, 0.05)));
+  let white = Lambertian::new(Texture::new_constant(vec3(0.73, 0.73, 0.73)));
+  let green = Lambertian::new(Texture::new_constant(vec3(0.12, 0.45, 0.15)));
+  let light = DiffuseLight::new(Texture::new_constant(scalar(7.0)));
+
+  let b2 = Box::new(Sphere::new(vec3(265.0, 150.0, 295.0), 150.0, white.clone()));
+
+  let b3 = Box::new(Sphere::new(
+    vec3(265.0, 150.0, 295.0),
+    120.0,
+    Dielectric::new(1.5),
+  ));
+
+  let b4 = Box::new(Sphere::new(
+    vec3(265.0, 150.0, 295.0),
+    110.0,
+    Metal::new(scalar(1.0), 0.0),
+  ));
+
+  let list: Vec<Box<dyn Hitable>> = vec![
+    // Left wall
+    Box::new(FlipNormals::new_yz(YZRect::new(
+      0.0, 555.0, 0.0, 565.0, 555.0, green,
+    ))),
+    // Right wall
+    Box::new(YZRect::new(0.0, 555.0, 0.0, 555.0, 0.0, red)),
+    // Light
+    Box::new(XZRect::new(113.0, 443.0, 127.0, 432.0, 554.0, light)),
+    // Ceiling
+    Box::new(FlipNormals::new_xz(XZRect::new(
+      0.0,
+      555.0,
+      0.0,
+      555.0,
+      555.0,
+      white.clone(),
+    ))),
+    // Floor
+    Box::new(XZRect::new(0.0, 555.0, 0.0, 555.0, 0.0, white.clone())),
+    // Back wall
+    Box::new(FlipNormals::new_xy(XYRect::new(
+      0.0,
+      555.0,
+      0.0,
+      555.0,
+      555.0,
+      white.clone(),
+    ))),
+    //    Box::new(ConstantMedium::new(b1, 0.005, Texture::new_constant(scalar(0.5)))),
+    Box::new(ConstantMedium::new(
+      b2,
+      0.01,
+      Texture::new_constant(scalar(0.5)),
+    )),
+    b3,
+    b4,
+    //Box::new(Sphere::new(vec3(450.0,50.0,100.0), 50.0, Dielectric::new(1.5))),
+    //Box::new(Sphere::new(vec3(350.0,50.0,200.0), 50.0, Metal::new(scalar(1.0),0.0))),
   ];
 
   let list = HitableList::new(list);

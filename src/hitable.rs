@@ -1,6 +1,9 @@
+use rand::prelude::*;
+
 use crate::bvh::*;
-use crate::material::Material;
+use crate::material::*;
 use crate::ray::Ray;
+use crate::texture::Texture;
 use crate::vec3::*;
 
 #[derive(Default)]
@@ -339,7 +342,7 @@ impl Hitable for Cuboid {
   fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
     self.list.hit(r, t_min, t_max)
   }
-  fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb> {
+  fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<Aabb> {
     Some(Aabb::new(self.pmin, self.pmax))
   }
 }
@@ -356,13 +359,20 @@ impl Cuboid {
         p0.z,
         material.clone(),
       ))),
-      Box::new(XZRect::new(p0.x, p1.x, p0.z, p1.z, p1.y, material.clone())),
+      Box::new(XZRect::new(
+        p0.x,
+        p1.x,
+        p0.z,
+        p1.z,
+        p1.y + 0.01,
+        material.clone(),
+      )),
       Box::new(FlipNormals::new_xz(XZRect::new(
         p0.x,
         p1.x,
         p0.z,
         p1.z,
-        p1.y,
+        p0.y,
         material.clone(),
       ))),
       Box::new(YZRect::new(p0.y, p1.y, p0.z, p1.z, p1.x, material.clone())),
@@ -491,11 +501,73 @@ impl Hitable for RotateY {
     }
     None
   }
-  fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb> {
+  fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<Aabb> {
     if self.hasbox {
       Some(self.boxy)
     } else {
       None
     }
+  }
+}
+
+#[derive(Debug)]
+pub struct ConstantMedium {
+  pub boundary: Box<dyn Hitable>,
+  pub density: f64,
+  pub phase_function: Material,
+}
+
+impl ConstantMedium {
+  pub fn new(boundary: Box<dyn Hitable>, density: f64, a: Texture) -> Self {
+    Self {
+      boundary,
+      density,
+      phase_function: Isotropic::new(a),
+    }
+  }
+}
+
+impl Hitable for ConstantMedium {
+  fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+    let mut rng = rand::thread_rng();
+    //let mut db = rng.gen::<f64>() < 0.00001;
+    //db = false;
+    if let Some(mut rec1) = self.boundary.hit(r, std::f64::MIN, std::f64::MAX) {
+      if let Some(mut rec2) = self.boundary.hit(r, rec1.t + 0.0001, std::f64::MAX) {
+        if rec1.t < t_min {
+          rec1.t = t_min;
+        }
+        if rec2.t > t_max {
+          rec2.t = t_max;
+        }
+        if rec1.t >= rec2.t {
+          return None;
+        }
+        if rec1.t < 0.0 {
+          rec1.t = 0.0;
+        }
+
+        let distance_inside_boundary = (rec2.t - rec1.t) * r.direction().length();
+        // TODO: CHECK C++ LOG FUNCTION BASE
+        let hit_distance = -(1.0 / self.density) * rng.gen::<f64>().ln();
+
+        if hit_distance < distance_inside_boundary {
+          let t = rec1.t + hit_distance / r.direction().length();
+          return Some(HitRecord {
+            t: t,
+            u: 0.0,
+            v: 0.0,
+            p: r.point_at_parameter(t),
+            normal: vec3(1.0, 0.0, 0.0), // arbitrary
+            material: Some(&self.phase_function),
+          });
+        }
+      }
+    }
+    None
+  }
+
+  fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb> {
+    self.boundary.bounding_box(t0, t1)
   }
 }
