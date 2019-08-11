@@ -1,4 +1,5 @@
 use rand::prelude::*;
+
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -24,9 +25,6 @@ use texture::*;
 use vec3::*;
 
 fn main() -> std::io::Result<()> {
-  let count = fs::read_dir("output/")?.count();
-  let mut file = File::create(format!("output/hello_world_{}.ppm", count))?;
-
   let args: Vec<String> = env::args().collect();
   let factor: isize = if args.len() > 1 {
     args[1].parse().unwrap()
@@ -108,13 +106,14 @@ fn main() -> std::io::Result<()> {
     handle.join().unwrap();
   }
 
-  file.write_all(format!("P3\n{} {}\n255\n", nx, ny).as_bytes())?;
   let mut result = vec![scalar(0.0); (nx * ny) as usize];
   for r in outer_result.lock().unwrap().iter_mut() {
     for (col, other) in result.iter_mut().zip(r.as_ref().unwrap().iter()) {
       *col += *other
     }
   }
+  let mut buffer: Vec<u8> = vec![];
+
   for mut col in result {
     col /= scalar(threads as f64);
     col = vec3(col.x.sqrt(), col.y.sqrt(), col.z.sqrt());
@@ -127,12 +126,19 @@ fn main() -> std::io::Result<()> {
     if col.z > 1.0 {
       col.z = 1.0;
     }
-    let ir = (255.99 * col.x) as isize;
-    let ig = (255.99 * col.y) as isize;
-    let ib = (255.99 * col.z) as isize;
+    let ir = (255.99 * col.x) as u8;
+    let ig = (255.99 * col.y) as u8;
+    let ib = (255.99 * col.z) as u8;
 
-    file.write(format!("{} {} {}\n", ir, ig, ib).as_bytes())?;
+    buffer.push(ir);
+    buffer.push(ig);
+    buffer.push(ib);
   }
+
+  let count = fs::read_dir("output/")?.count();
+  let file_name = format!("output/hello_world_{}.png", count);
+
+  image::save_buffer(file_name, &buffer, nx as u32, ny as u32, image::RGB(8)).unwrap();
 
   Ok(())
 }
