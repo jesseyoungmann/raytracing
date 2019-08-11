@@ -2,8 +2,6 @@ use rand::prelude::*;
 
 use std::env;
 use std::fs;
-use std::fs::File;
-use std::io::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -532,18 +530,19 @@ pub fn cornell_smoke_scene(ratio: f64) -> (Camera, HitableList) {
   let green = Lambertian::new(Texture::new_constant(vec3(0.12, 0.45, 0.15)));
   let light = DiffuseLight::new(Texture::new_constant(scalar(7.0)));
 
-  let b2 = Box::new(Sphere::new(vec3(265.0, 150.0, 295.0), 150.0, white.clone()));
+  // WRAPPED IN VOLUMETRIC
+  //let b2 = Box::new(Sphere::new(vec3(265.0, 150.0, 295.0), 150.0, white.clone()));
 
   let b3 = Box::new(Sphere::new(
-    vec3(265.0, 150.0, 295.0),
+    vec3(277.5, 150.0, 295.0),
     120.0,
     Dielectric::new(1.5),
   ));
 
   let b4 = Box::new(Sphere::new(
-    vec3(265.0, 150.0, 295.0),
-    110.0,
-    Metal::new(scalar(1.0), 0.0),
+    vec3(277.5, 150.0, 295.0),
+    118.0,
+    Metal::new(scalar(1.0),0.0),
   ));
 
   let list: Vec<Box<dyn Hitable>> = vec![
@@ -576,11 +575,11 @@ pub fn cornell_smoke_scene(ratio: f64) -> (Camera, HitableList) {
       white.clone(),
     ))),
     //    Box::new(ConstantMedium::new(b1, 0.005, Texture::new_constant(scalar(0.5)))),
-    Box::new(ConstantMedium::new(
-      b2,
-      0.01,
-      Texture::new_constant(scalar(0.5)),
-    )),
+    //Box::new(ConstantMedium::new(
+    //  b2,
+    //  0.01,
+    //  Texture::new_constant(scalar(0.5)),
+    //)),
     b3,
     b4,
     //Box::new(Sphere::new(vec3(450.0,50.0,100.0), 50.0, Dielectric::new(1.5))),
