@@ -2,5 +2,6 @@
 **/*.rs.bk
 **/\.*.swp
 output/
-output.bak/
+output_book1/
+output_book2/
 .DS_STORE
