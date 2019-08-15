@@ -1,29 +1,42 @@
 use rand::prelude::*;
 
 use crate::hitable::*;
-use crate::random_in_unit_sphere;
+use crate::random_cosine_direction;
 use crate::ray::Ray;
 use crate::texture::*;
 use crate::vec3::*;
+use crate::onb::*;
 
 #[derive(Debug, Clone)]
 pub enum Material {
   OkayLambertian(Lambertian),
-  OkayMetal(Metal),
-  OkayDielectric(Dielectric),
+  //OkayMetal(Metal),
+  //OkayDielectric(Dielectric),
   OkayDiffuseLight(DiffuseLight),
-  OkayIsotropic(Isotropic),
+  //OkayIsotropic(Isotropic),
 }
 
 use Material::*;
 impl Material {
-  pub fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
+  pub fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray, f64)> {
     match self {
       OkayLambertian(inner) => inner.scatter(r_in, rec),
+      OkayDiffuseLight(inner) => inner.scatter(r_in, rec),
+      _ => None,
+      /*
       OkayMetal(inner) => inner.scatter(r_in, rec),
       OkayDielectric(inner) => inner.scatter(r_in, rec),
-      OkayDiffuseLight(inner) => inner.scatter(r_in, rec),
+      */
+      /*
       OkayIsotropic(inner) => inner.scatter(r_in, rec),
+      */
+    }
+  }
+
+  pub fn scattering_pdf(&self, r_in: &Ray, rec: &mut HitRecord, scattered: &Ray) -> f64 {
+    match self {
+      OkayLambertian(inner) => inner.scattering_pdf(r_in, rec, scattered),
+      _ => 0.0,
     }
   }
 
@@ -51,14 +64,25 @@ impl Lambertian {
     })
   }
 
-  pub fn scatter(&self, _r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
-    let target = rec.p + rec.normal + random_in_unit_sphere();
-    let scattered = Ray::new(rec.p, target - rec.p);
-    let attenuation = self.albedo.value(0.0, 0.0, rec.p);
-    Some((attenuation, scattered))
+  pub fn scatter(&self, _r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray, f64)> {
+    let uvw = ONB::build_from_w(rec.normal);
+    let direction = uvw.local( random_cosine_direction() );
+    let scattered = Ray::new(rec.p, direction.unit());
+    let albedo = self.albedo.value(rec.u, rec.v, rec.p);
+    let pdf = uvw.w.dot(scattered.direction()) / std::f64::consts::PI;
+    Some((albedo, scattered, pdf))
+  }
+
+  pub fn scattering_pdf(&self, r_in: &Ray, rec: &mut HitRecord, scattered: &Ray) -> f64 {
+    let mut cosine = rec.normal.dot(scattered.direction().unit());
+    if cosine < 0.0 {
+      cosine = 0.0;
+    }
+    cosine / std::f64::consts::PI
   }
 }
 
+/*
 #[derive(Clone, Debug)]
 pub struct Metal {
   pub albedo: Vec3,
@@ -154,6 +178,7 @@ fn schlick(cosine: f64, ref_idx: f64) -> f64 {
   let r0 = r0 * r0;
   r0 + (1.0 - r0) * (1.0 - cosine).powf(5.0)
 }
+*/
 
 #[derive(Debug, Clone)]
 pub struct DiffuseLight {
@@ -165,7 +190,7 @@ impl DiffuseLight {
     OkayDiffuseLight(Self { emit })
   }
 
-  pub fn scatter(&self, _r_in: &Ray, _rec: &mut HitRecord) -> Option<(Vec3, Ray)> {
+  pub fn scatter(&self, _r_in: &Ray, _rec: &mut HitRecord) -> Option<(Vec3, Ray, f64)> {
     None
   }
 
@@ -174,6 +199,7 @@ impl DiffuseLight {
   }
 }
 
+/*
 #[derive(Debug, Clone)]
 pub struct Isotropic {
   albedo: Texture,
@@ -190,3 +216,4 @@ impl Isotropic {
     Some((attenuation, scattered))
   }
 }
+*/

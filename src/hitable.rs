@@ -510,6 +510,7 @@ impl Hitable for RotateY {
   }
 }
 
+/*
 #[derive(Debug)]
 pub struct ConstantMedium {
   pub boundary: Box<dyn Hitable>,
@@ -571,3 +572,4 @@ impl Hitable for ConstantMedium {
     self.boundary.bounding_box(t0, t1)
   }
 }
+*/
