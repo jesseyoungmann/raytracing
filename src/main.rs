@@ -167,16 +167,35 @@ fn color(r: &Ray, world: &dyn Hitable, depth: isize) -> Vec3 {
     let emitted = rec
       .material
       .expect("Missing material somewhere")
-      .emitted(rec.u, rec.v, rec.p);
+      .emitted(&r, &rec, rec.u, rec.v, rec.p);
     if depth < 50 {
       let material = rec.material.take();
       if let Some((albedo, scattered, pdf)) = material
         .as_ref().and_then(|m| m.scatter(r, &mut rec))
       {
-        // PROLLY HAVE TO TAKE MATERIAL REFERENCE?
+        let mut rng = rand::thread_rng();
+        let on_light = vec3(
+          213.0 + rng.gen::<f64>() * (343.0 - 213.0),
+          554.0,
+          227.0 + rng.gen::<f64>() * (332.0 - 227.0),
+        );
+        let to_light = on_light - rec.p;
+        let distance_squared = to_light.squared_length();
+        let to_light = to_light.unit();
+        if to_light.dot(rec.normal) < 0.0 {
+          return emitted;
+        }
+        let light_area = (343.0 - 213.0) * (332.0 - 227.0);
+        let light_cosine = to_light.y.abs();
+        if light_cosine < 0.000001 {
+          return emitted;
+        }
+        let pdf = distance_squared / (light_cosine * light_area);
+        let scattered = Ray::new(rec.p, to_light);
+
         return emitted
           + albedo
-            * scalar(material.expect("Missing material #4 or whatever")
+            * scalar(material.expect("Missing material in here")
               .scattering_pdf(r, &mut rec, &scattered))
             * color(&scattered, world, depth + 1) / scalar(pdf);
       }

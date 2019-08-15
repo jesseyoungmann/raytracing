@@ -287,7 +287,7 @@ pub fn cornell_box_scene(ratio: f64) -> (Camera, HitableList) {
     // Right wall
     Box::new(YZRect::new(0.0, 555.0, 0.0, 555.0, 0.0, red)),
     // Light
-    Box::new(XZRect::new(213.0, 343.0, 227.0, 332.0, 554.0, light.clone())),
+    Box::new(FlipNormals::new_xz(XZRect::new(213.0, 343.0, 227.0, 332.0, 554.0, light.clone()))),
     // Ceiling
     Box::new(FlipNormals::new_xz(XZRect::new(
       0.0,

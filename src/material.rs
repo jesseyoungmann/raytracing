@@ -40,9 +40,9 @@ impl Material {
     }
   }
 
-  pub fn emitted(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
+  pub fn emitted(&self, r_in: &Ray, rec: &HitRecord, u: f64, v: f64, p: Vec3) -> Vec3 {
     match self {
-      OkayDiffuseLight(inner) => inner.emitted(u, v, p),
+      OkayDiffuseLight(inner) => inner.emitted(r_in, rec, u, v, p),
       _ => scalar(0.0),
     }
   }
@@ -194,8 +194,12 @@ impl DiffuseLight {
     None
   }
 
-  pub fn emitted(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
-    self.emit.value(u, v, p)
+  pub fn emitted(&self, r_in: &Ray, rec: &HitRecord, u: f64, v: f64, p: Vec3) -> Vec3 {
+    if rec.normal.dot(r_in.direction()) < 0.0 {
+      self.emit.value(u, v, p)
+    } else {
+      scalar(0.0)
+    }
   }
 }
 
