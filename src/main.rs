@@ -11,21 +11,23 @@ mod bvh;
 mod camera;
 mod hitable;
 mod material;
+mod onb;
+mod pdf;
 mod perlin;
 mod ray;
+mod scenes;
 mod texture;
 pub mod vec3;
-mod scenes;
-mod onb;
 
 use bvh::*;
 use camera::Camera;
 use hitable::*;
 use material::*;
+use pdf::*;
 use ray::Ray;
+use scenes::*;
 use texture::*;
 use vec3::*;
-use scenes::*;
 
 const SKYBOX_COLOR: f64 = 0.0;
 
@@ -170,34 +172,29 @@ fn color(r: &Ray, world: &dyn Hitable, depth: isize) -> Vec3 {
       .emitted(&r, &rec, rec.u, rec.v, rec.p);
     if depth < 50 {
       let material = rec.material.take();
-      if let Some((albedo, scattered, pdf)) = material
-        .as_ref().and_then(|m| m.scatter(r, &mut rec))
+      if let Some((albedo, scattered, pdf)) = material.as_ref().and_then(|m| m.scatter(r, &mut rec))
       {
-        let mut rng = rand::thread_rng();
-        let on_light = vec3(
-          213.0 + rng.gen::<f64>() * (343.0 - 213.0),
-          554.0,
-          227.0 + rng.gen::<f64>() * (332.0 - 227.0),
-        );
-        let to_light = on_light - rec.p;
-        let distance_squared = to_light.squared_length();
-        let to_light = to_light.unit();
-        if to_light.dot(rec.normal) < 0.0 {
-          return emitted;
-        }
-        let light_area = (343.0 - 213.0) * (332.0 - 227.0);
-        let light_cosine = to_light.y.abs();
-        if light_cosine < 0.000001 {
-          return emitted;
-        }
-        let pdf = distance_squared / (light_cosine * light_area);
-        let scattered = Ray::new(rec.p, to_light);
+        let light = DiffuseLight::new(Texture::new_constant(scalar(15.0)));
+        let light_shape = XZRect::new(213.0, 343.0, 227.0, 332.0, 554.0, light);
+
+        let p0 = HitablePDF::new(&light_shape, rec.p);
+
+        let p1 = CosinePDF::new(rec.normal);
+
+        let p = MixturePDF::new(p0, p1);
+
+        let scattered = Ray::new(rec.p, p.generate());
+        let pdf_val = p.value(scattered.direction());
 
         return emitted
           + albedo
-            * scalar(material.expect("Missing material in here")
-              .scattering_pdf(r, &mut rec, &scattered))
-            * color(&scattered, world, depth + 1) / scalar(pdf);
+            * scalar(
+              material
+                .expect("Missing material in here")
+                .scattering_pdf(r, &mut rec, &scattered),
+            )
+            * color(&scattered, world, depth + 1)
+            / scalar(pdf_val);
       }
     }
     return emitted;

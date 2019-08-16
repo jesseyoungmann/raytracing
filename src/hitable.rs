@@ -19,6 +19,14 @@ pub struct HitRecord<'a> {
 pub trait Hitable: std::fmt::Debug + Send + Sync {
   fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
   fn bounding_box(&self, t0: f64, t1: f64) -> Option<Aabb>;
+
+  fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
+    0.0
+  }
+
+  fn random(&self, o: Vec3) -> Vec3 {
+    vec3(1.0, 0.0, 0.0)
+  }
 }
 
 #[derive(Debug)]
@@ -232,6 +240,27 @@ impl Hitable for XZRect {
       vec3(self.x0, self.k - 0.0001, self.z0),
       vec3(self.x1, self.k + 0.0001, self.z1),
     ))
+  }
+
+  fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
+    if let Some(rec) = self.hit(&Ray::new(o, v), 0.001, std::f64::MAX) {
+      let area = (self.x1 - self.x0) * (self.z1 - self.z0);
+      let distance_squared = rec.t * rec.t * v.squared_length();
+      let cosine = (v.dot(rec.normal) / v.length()).abs();
+      distance_squared / (cosine * area)
+    } else {
+      0.0
+    }
+  }
+
+  fn random(&self, o: Vec3) -> Vec3 {
+    let mut rng = rand::thread_rng();
+    let random_point = vec3(
+      self.x0 + rng.gen::<f64>() * (self.x1 - self.x0),
+      self.k,
+      self.z0 + rng.gen::<f64>() * (self.z1 - self.z0),
+    );
+    random_point - o
   }
 }
 

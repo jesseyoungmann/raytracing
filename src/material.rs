@@ -1,11 +1,11 @@
 use rand::prelude::*;
 
 use crate::hitable::*;
+use crate::onb::*;
 use crate::random_cosine_direction;
 use crate::ray::Ray;
 use crate::texture::*;
 use crate::vec3::*;
-use crate::onb::*;
 
 #[derive(Debug, Clone)]
 pub enum Material {
@@ -66,7 +66,7 @@ impl Lambertian {
 
   pub fn scatter(&self, _r_in: &Ray, rec: &mut HitRecord) -> Option<(Vec3, Ray, f64)> {
     let uvw = ONB::build_from_w(rec.normal);
-    let direction = uvw.local( random_cosine_direction() );
+    let direction = uvw.local(random_cosine_direction());
     let scattered = Ray::new(rec.p, direction.unit());
     let albedo = self.albedo.value(rec.u, rec.v, rec.p);
     let pdf = uvw.w.dot(scattered.direction()) / std::f64::consts::PI;

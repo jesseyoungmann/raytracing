@@ -17,15 +17,11 @@ impl ONB {
     let v = w.cross(a).unit();
     let u = w.cross(v);
 
-    Self {
-      u, v, w,
-    }
+    Self { u, v, w }
   }
 
   pub fn local(&self, a: Vec3) -> Vec3 {
-    scalar(a.x) * self.u
-      + scalar(a.y) * self.v
-      + scalar(a.z) * self.w
+    scalar(a.x) * self.u + scalar(a.y) * self.v + scalar(a.z) * self.w
   }
 }
 
