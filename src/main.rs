@@ -105,7 +105,7 @@ fn main() -> std::io::Result<()> {
             let r = camera.get_ray(u, v);
             let _p = r.point_at_parameter(2.0);
             let depth = 0;
-            col += color(&r, &bvh_world, depth);
+            col += de_nan(color(&r, &bvh_world, depth));
             //col += color(&r, &*world, depth);
           }
 
@@ -246,4 +246,19 @@ fn random_cosine_direction() -> Vec3 {
   let x = phi.cos() * 2.0 * r2_sqrt;
   let y = phi.sin() * 2.0 * r2_sqrt;
   vec3(x, y, z)
+}
+
+// DOUBLE CHECK RUST NaN HANDLING
+fn de_nan(c: Vec3) -> Vec3 {
+  let mut temp = c;
+  if temp.x.is_nan() {
+    temp.x = 0.0;
+  }
+  if temp.y.is_nan() {
+    temp.y = 0.0;
+  }
+  if temp.z.is_nan() {
+    temp.z = 0.0;
+  }
+  temp
 }
